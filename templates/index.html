@@ -1329,28 +1329,37 @@
 <script>
 // ── LAYERS ──────────────────────────────────────────────
 const tileLayers = {
+  // 地理院タイルの実データはanaglyph=15、その他=18が最大ズームのため、
+  // maxNativeZoomで実際に存在するタイルの上限を指定しつつ、maxZoomを20まで許可する。
+  // こうすることで上限を超えたズーム域は直近のタイルを拡大表示（オーバーズーム）し、
+  // 存在しないタイルをリクエストして地図が真っ白になる事態を防ぐ。
   anaglyph: L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/anaglyphmap_color/{z}/{x}/{y}.png', {
     attribution: '<a href="https://maps.gsi.go.jp/development/ichiran.html" target="_blank">地理院タイル</a>',
-    maxZoom: 15
+    maxZoom: 20,
+    maxNativeZoom: 15
   }),
   std: L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/std/{z}/{x}/{y}.png', {
     attribution: '<a href="https://maps.gsi.go.jp/development/ichiran.html" target="_blank">地理院タイル</a>',
-    maxZoom: 18
+    maxZoom: 20,
+    maxNativeZoom: 18
   }),
   pale: L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/pale/{z}/{x}/{y}.png', {
     attribution: '<a href="https://maps.gsi.go.jp/development/ichiran.html" target="_blank">地理院タイル</a>',
-    maxZoom: 18
+    maxZoom: 20,
+    maxNativeZoom: 18
   }),
   photo: L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/seamlessphoto/{z}/{x}/{y}.jpg', {
     attribution: '<a href="https://maps.gsi.go.jp/development/ichiran.html" target="_blank">地理院タイル</a>',
-    maxZoom: 18
+    maxZoom: 20,
+    maxNativeZoom: 18
   })
 };
 
 let currentLayerKey = 'anaglyph';
 const map = L.map('map', {
   center: [36.0, 136.0],
-  zoom: 6,
+  zoom: 20,
+  maxZoom: 20,
   layers: [tileLayers.anaglyph],
   zoomControl: true
 });
