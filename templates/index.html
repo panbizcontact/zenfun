@@ -1,0 +1,2283 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>古墳マップ — 日本全国の古墳を巡る</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@400;600;700&family=Noto+Sans+JP:wght@300;400;500&family=Shippori+Mincho:wght@400;600;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<style>
+  :root {
+    --ink: #1a1208;
+    --ink-light: #3d2e1a;
+    --parchment: #f5ede0;
+    --parchment-dark: #e8d9c4;
+    --rust: #8b3a1a;
+    --rust-light: #c4622d;
+    --gold: #b8922a;
+    --gold-light: #d4aa44;
+    --moss: #4a5e3a;
+    --moss-light: #6b8a52;
+    --stone: #8a7d6e;
+    --stone-light: #b0a494;
+    --panel-bg: rgba(245, 237, 224, 0.97);
+    --shadow: 0 4px 24px rgba(26,18,8,0.18);
+    --shadow-lg: 0 8px 40px rgba(26,18,8,0.25);
+    --border: rgba(184,146,42,0.3);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Noto Sans JP', sans-serif;
+    background: var(--ink);
+    color: var(--ink);
+    height: 100vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ── HEADER ── */
+  #header {
+    background: var(--ink);
+    padding: 0 24px;
+    height: 56px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 2px solid var(--gold);
+    flex-shrink: 0;
+    z-index: 1000;
+  }
+
+  .header-title {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+  }
+
+  .header-title h1 {
+    font-family: 'Shippori Mincho', serif;
+    font-size: 22px;
+    font-weight: 800;
+    color: var(--gold-light);
+    letter-spacing: 0.15em;
+  }
+
+  .header-title span {
+    font-size: 11px;
+    color: var(--stone-light);
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+  }
+
+  .header-stats {
+    display: flex;
+    gap: 20px;
+    align-items: center;
+  }
+
+  .stat-pill {
+    background: rgba(184,146,42,0.15);
+    border: 1px solid rgba(184,146,42,0.35);
+    color: var(--gold-light);
+    font-size: 11px;
+    padding: 4px 12px;
+    border-radius: 20px;
+    letter-spacing: 0.05em;
+  }
+
+  /* ── MAIN LAYOUT ── */
+  #main {
+    flex: 1;
+    display: flex;
+    overflow: hidden;
+  }
+
+  /* ── SIDEBAR ── */
+  #sidebar {
+    width: 360px;
+    flex-shrink: 0;
+    background: var(--parchment);
+    display: flex;
+    flex-direction: column;
+    border-right: 1px solid var(--border);
+    z-index: 100;
+    transition: transform 0.3s ease;
+  }
+  @media screen and (max-width: 768px) {
+    #sidebar {
+      display: none; /* 要素を非表示にする */
+    }
+  }
+
+  #sidebar.collapsed {
+    transform: translateX(-360px);
+  }
+
+  /* Search area */
+  .search-area {
+    padding: 16px;
+    background: var(--parchment-dark);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .search-box {
+    position: relative;
+    margin-bottom: 10px;
+  }
+
+  .search-box input {
+    width: 100%;
+    padding: 10px 40px 10px 14px;
+    border: 1.5px solid var(--border);
+    border-radius: 6px;
+    background: white;
+    font-family: 'Noto Sans JP', sans-serif;
+    font-size: 13px;
+    color: var(--ink);
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  .search-box input:focus {
+    border-color: var(--gold);
+    box-shadow: 0 0 0 3px rgba(184,146,42,0.12);
+  }
+
+  .search-icon {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--stone);
+    font-size: 14px;
+    pointer-events: none;
+  }
+
+  .filter-row {
+    display: flex;
+    gap: 8px;
+  }
+
+  .filter-row select {
+    flex: 1;
+    padding: 7px 10px;
+    border: 1.5px solid var(--border);
+    border-radius: 6px;
+    background: white;
+    font-family: 'Noto Sans JP', sans-serif;
+    font-size: 12px;
+    color: var(--ink);
+    cursor: pointer;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  .filter-row select:focus {
+    border-color: var(--gold);
+  }
+
+  .filter-checkrow {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-top: 8px;
+  }
+
+  .filter-check {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 11px;
+    color: var(--ink-light);
+    cursor: pointer;
+  }
+
+  .filter-check input[type="checkbox"] {
+    accent-color: var(--gold);
+    width: 14px;
+    height: 14px;
+  }
+
+  .result-count {
+    margin-top: 8px;
+    font-size: 11px;
+    color: var(--stone);
+    letter-spacing: 0.05em;
+  }
+
+  /* List */
+  #kofun-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 8px 0;
+  }
+
+  #kofun-list::-webkit-scrollbar { width: 5px; }
+  #kofun-list::-webkit-scrollbar-track { background: var(--parchment); }
+  #kofun-list::-webkit-scrollbar-thumb { background: var(--stone-light); border-radius: 3px; }
+
+  .kofun-item {
+    padding: 12px 16px;
+    cursor: pointer;
+    border-bottom: 1px solid rgba(184,146,42,0.12);
+    transition: background 0.15s;
+    position: relative;
+  }
+
+  .kofun-item:hover {
+    background: rgba(184,146,42,0.08);
+  }
+
+  .kofun-item.active {
+    background: rgba(139,58,26,0.08);
+    border-left: 3px solid var(--rust);
+    padding-left: 13px;
+  }
+
+  .kofun-item-name {
+    font-family: 'Noto Serif JP', serif;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--ink);
+    margin-bottom: 3px;
+  }
+
+  .kofun-item-sub {
+    font-size: 11px;
+    color: var(--stone);
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+
+  .tag {
+    display: inline-block;
+    padding: 1px 7px;
+    border-radius: 3px;
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.03em;
+  }
+
+  .tag-type {
+    background: rgba(74,94,58,0.12);
+    color: var(--moss);
+    border: 1px solid rgba(74,94,58,0.25);
+  }
+
+  .tag-era {
+    background: rgba(139,58,26,0.1);
+    color: var(--rust);
+    border: 1px solid rgba(139,58,26,0.2);
+  }
+
+  .tag-wh {
+    background: rgba(184,146,42,0.15);
+    color: var(--gold);
+    border: 1px solid rgba(184,146,42,0.35);
+  }
+
+  /* ── MAP ── */
+  #map {
+    flex: 1;
+    width: 100%;
+    height: 100%;
+    z-index: 1;
+  }
+
+  /* 地図中央に常時表示するカーソル（地図をパン/ズームしても中心に固定） */
+  #map-center-cursor {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 2; /* #map(1)より上に重ねる */
+    pointer-events: none;
+    filter: drop-shadow(0 1px 2px rgba(0,0,0,0.6));
+  }
+
+  /* MAP wrapper must fill remaining space */
+  #main > div:last-child {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    overflow: hidden;
+  }
+
+  /* ── DETAIL PANEL ── */
+  #detail-panel {
+    position: absolute;
+    right: 0;
+    top: 56px;
+    bottom: 0;
+    width: 380px;
+    background: var(--panel-bg);
+    box-shadow: var(--shadow-lg);
+    transform: translateX(100%);
+    transition: transform 0.35s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    z-index: 500;
+    display: flex;
+    flex-direction: column;
+    border-left: 1px solid var(--border);
+    overflow: hidden;
+  }
+
+  #detail-panel.open {
+    transform: translateX(0);
+  }
+
+  .detail-photo {
+    width: 100%;
+    height: 220px;
+    object-fit: cover;
+    display: block;
+    background: var(--parchment-dark);
+  }
+
+  .detail-photo-placeholder {
+    width: 100%;
+    height: 180px;
+    background: linear-gradient(135deg, #e8d9c4 0%, #d4c4ae 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--stone);
+    font-size: 40px;
+    flex-shrink: 0;
+  }
+
+  .detail-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px;
+  }
+
+  .detail-body::-webkit-scrollbar { width: 5px; }
+  .detail-body::-webkit-scrollbar-thumb { background: var(--stone-light); border-radius: 3px; }
+
+  .detail-close {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    width: 32px;
+    height: 32px;
+    background: rgba(26,18,8,0.5);
+    border: none;
+    border-radius: 50%;
+    color: white;
+    cursor: pointer;
+    font-size: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10;
+    transition: background 0.2s;
+  }
+
+  .detail-close:hover {
+    background: rgba(26,18,8,0.75);
+  }
+
+  .detail-name {
+    font-family: 'Shippori Mincho', serif;
+    font-size: 20px;
+    font-weight: 600;
+    color: var(--ink);
+    margin-bottom: 3px;
+    line-height: 1.4;
+  }
+
+  .detail-yomi {
+    font-size: 12px;
+    color: var(--stone);
+    margin-bottom: 12px;
+    letter-spacing: 0.08em;
+  }
+
+  .detail-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 16px;
+  }
+
+  .detail-meta {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 6px 14px;
+    margin-bottom: 16px;
+    font-size: 13px;
+  }
+
+  .detail-meta dt {
+    color: var(--stone);
+    font-weight: 500;
+    white-space: nowrap;
+    font-size: 12px;
+  }
+
+  .detail-meta dd {
+    color: var(--ink-light);
+  }
+
+  .detail-divider {
+    height: 1px;
+    background: var(--border);
+    margin: 14px 0;
+  }
+
+  .detail-desc {
+    font-size: 13px;
+    line-height: 1.8;
+    color: var(--ink-light);
+    letter-spacing: 0.02em;
+  }
+
+  .detail-badges {
+    display: flex;
+    gap: 8px;
+    margin-top: 14px;
+    flex-wrap: wrap;
+  }
+
+  .badge {
+    padding: 4px 12px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+
+  .badge-wh {
+    background: rgba(184,146,42,0.15);
+    color: #8a6a0a;
+    border: 1px solid rgba(184,146,42,0.4);
+  }
+
+  .badge-site {
+    background: rgba(74,94,58,0.12);
+    color: var(--moss);
+    border: 1px solid rgba(74,94,58,0.3);
+  }
+
+  /* ── MAP TOGGLE BUTTON ── */
+  .sidebar-toggle {
+    position: absolute;
+    left: 360px;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 200;
+    background: var(--parchment);
+    border: 1px solid var(--border);
+    border-left: none;
+    width: 20px;
+    height: 48px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    color: var(--stone);
+    border-radius: 0 6px 6px 0;
+    transition: left 0.3s, background 0.2s;
+    box-shadow: 2px 0 8px rgba(26,18,8,0.1);
+  }
+
+  .sidebar-toggle:hover {
+    background: var(--parchment-dark);
+    color: var(--ink);
+  }
+
+  #sidebar.collapsed ~ #sidebar-toggle {
+    left: 0;
+  }
+
+  /* Leaflet custom marker */
+  .kofun-marker {
+    background: var(--rust);
+    border: 2px solid white;
+    border-radius: 50%;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+    cursor: pointer;
+    transition: transform 0.15s;
+  }
+
+  .kofun-marker.wh {
+    background: var(--gold);
+  }
+
+  .kofun-marker:hover {
+    transform: scale(1.4);
+  }
+
+  .leaflet-popup-content-wrapper {
+    background: var(--parchment);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    box-shadow: var(--shadow);
+    font-family: 'Noto Sans JP', sans-serif;
+  }
+
+  .leaflet-popup-content {
+    margin: 12px 14px;
+    min-width: 160px;
+  }
+
+  .popup-name {
+    font-family: 'Noto Serif JP', serif;
+    font-weight: 600;
+    font-size: 14px;
+    color: var(--ink);
+    margin-bottom: 4px;
+  }
+
+  .popup-sub {
+    font-size: 11px;
+    color: var(--stone);
+    margin-bottom: 6px;
+  }
+
+  .popup-btn {
+    display: block;
+    width: 100%;
+    padding: 6px;
+    background: var(--rust);
+    color: white;
+    border: none;
+    border-radius: 4px;
+    font-family: 'Noto Sans JP', sans-serif;
+    font-size: 12px;
+    cursor: pointer;
+    text-align: center;
+    letter-spacing: 0.05em;
+    transition: background 0.2s;
+  }
+
+  .popup-btn:hover { background: var(--rust-light); }
+
+  /* Legend */
+  .map-legend {
+    position: absolute;
+    bottom: 28px;
+    left: 14px;
+    background: var(--panel-bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-size: 11px;
+    z-index: 400;
+    box-shadow: var(--shadow);
+    color: var(--ink-light);
+    pointer-events: none;
+  }
+
+  .legend-title {
+    font-weight: 600;
+    margin-bottom: 6px;
+    color: var(--ink);
+    font-size: 11px;
+    letter-spacing: 0.05em;
+  }
+
+  .legend-row {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    margin-bottom: 4px;
+  }
+
+  .legend-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    border: 1.5px solid white;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+    flex-shrink: 0;
+  }
+
+  /* Layer switcher */
+  .layer-control {
+    position: absolute;
+    bottom: 28px;
+    right: 14px;
+    background: var(--panel-bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    z-index: 400;
+    box-shadow: var(--shadow);
+  }
+
+  .layer-btn {
+    display: block;
+    padding: 8px 14px;
+    font-family: 'Noto Sans JP', sans-serif;
+    font-size: 11px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--ink-light);
+    width: 100%;
+    text-align: left;
+    border-bottom: 1px solid rgba(184,146,42,0.15);
+    transition: background 0.15s;
+    white-space: nowrap;
+  }
+
+  .layer-btn:last-child { border-bottom: none; }
+  .layer-btn:hover { background: rgba(184,146,42,0.1); }
+  .layer-btn.active { color: var(--rust); font-weight: 500; background: rgba(139,58,26,0.06); }
+
+  /* Empty state */
+  .empty-state {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--stone);
+  }
+
+  .empty-state .icon { font-size: 36px; margin-bottom: 10px; }
+  .empty-state p { font-size: 13px; }
+
+  @keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(12px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .kofun-item { animation: fadeInUp 0.2s ease both; }
+
+  /* Upload hint */
+  .upload-hint {
+    padding: 10px 16px;
+    background: rgba(184,146,42,0.08);
+    border-top: 1px solid var(--border);
+    font-size: 11px;
+    color: var(--stone);
+    text-align: center;
+    flex-shrink: 0;
+  }
+
+  .upload-hint a {
+    color: var(--gold);
+    text-decoration: none;
+  }
+  .upload-hint a:hover { text-decoration: underline; }
+
+  /* ── ADMIN ── */
+  .admin-area {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .admin-btn {
+    background: rgba(184,146,42,0.15);
+    border: 1px solid rgba(184,146,42,0.35);
+    color: var(--gold-light);
+    font-size: 11px;
+    padding: 5px 12px;
+    border-radius: 20px;
+    cursor: pointer;
+    font-family: 'Noto Sans JP', sans-serif;
+    letter-spacing: 0.04em;
+    transition: background 0.2s, color 0.2s;
+    white-space: nowrap;
+  }
+  .admin-btn:hover { background: rgba(184,146,42,0.3); }
+
+  .admin-btn.primary {
+    background: var(--rust);
+    border-color: var(--rust);
+    color: white;
+  }
+  .admin-btn.primary:hover { background: var(--rust-light); }
+
+  .admin-btn.active {
+    background: var(--moss);
+    border-color: var(--moss);
+    color: white;
+  }
+  .admin-btn.active:hover { background: var(--moss-light); }
+
+  .admin-status {
+    font-size: 11px;
+    color: var(--gold-light);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    letter-spacing: 0.04em;
+  }
+
+  /* ── MODAL ── */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(26,18,8,0.55);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 3000;
+  }
+  .modal-overlay.open { display: flex; }
+
+  .modal-box {
+    position: relative;
+    background: var(--parchment);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    box-shadow: var(--shadow-lg);
+    width: 360px;
+    max-width: 92vw;
+    max-height: 86vh;
+    overflow-y: auto;
+    padding: 24px;
+  }
+  .modal-box.wide { width: 480px; }
+
+  .modal-box::-webkit-scrollbar { width: 5px; }
+  .modal-box::-webkit-scrollbar-thumb { background: var(--stone-light); border-radius: 3px; }
+
+  .modal-title {
+    font-family: 'Shippori Mincho', serif;
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--ink);
+    margin-bottom: 4px;
+  }
+
+  .modal-sub {
+    font-size: 11px;
+    color: var(--stone);
+    margin-bottom: 18px;
+    letter-spacing: 0.03em;
+  }
+
+  .form-row { margin-bottom: 12px; }
+  .form-row label {
+    display: block;
+    font-size: 11px;
+    color: var(--ink-light);
+    margin-bottom: 4px;
+    letter-spacing: 0.02em;
+  }
+  .form-row input[type="text"],
+  .form-row input[type="number"],
+  .form-row input[type="password"],
+  .form-row input[type="url"],
+  .form-row select,
+  .form-row textarea {
+    width: 100%;
+    padding: 8px 10px;
+    border: 1.5px solid var(--border);
+    border-radius: 6px;
+    background: white;
+    font-family: 'Noto Sans JP', sans-serif;
+    font-size: 13px;
+    color: var(--ink);
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .form-row input:focus, .form-row select:focus, .form-row textarea:focus {
+    border-color: var(--gold);
+    box-shadow: 0 0 0 3px rgba(184,146,42,0.12);
+  }
+  .form-row textarea { resize: vertical; min-height: 56px; font-family: 'Noto Sans JP', sans-serif; }
+
+  .form-grid2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+
+  .form-checks {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 14px;
+  }
+  .form-checks label {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 12px;
+    color: var(--ink-light);
+    cursor: pointer;
+  }
+  .form-checks input { accent-color: var(--gold); width: 14px; height: 14px; }
+
+  .modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 18px;
+  }
+
+  .modal-btn {
+    padding: 8px 18px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-family: 'Noto Sans JP', sans-serif;
+    cursor: pointer;
+    border: 1px solid var(--border);
+    background: white;
+    color: var(--ink-light);
+    transition: background 0.15s;
+  }
+  .modal-btn.primary {
+    background: var(--rust);
+    border-color: var(--rust);
+    color: white;
+  }
+  .modal-btn.primary:hover { background: var(--rust-light); }
+  .modal-btn:hover { background: var(--parchment-dark); }
+
+  .modal-error {
+    font-size: 12px;
+    color: var(--rust);
+    margin-top: 4px;
+    display: none;
+    line-height: 1.5;
+  }
+  .modal-error.show { display: block; }
+
+  .modal-close-x {
+    position: absolute;
+    top: 14px;
+    right: 14px;
+    background: none;
+    border: none;
+    font-size: 16px;
+    color: var(--stone);
+    cursor: pointer;
+    line-height: 1;
+  }
+  .modal-close-x:hover { color: var(--ink); }
+
+  /* Add-mode banner on map */
+  .add-mode-banner {
+    position: absolute;
+    top: 14px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--moss);
+    color: white;
+    padding: 8px 18px;
+    border-radius: 20px;
+    font-size: 12px;
+    letter-spacing: 0.03em;
+    z-index: 600;
+    box-shadow: var(--shadow);
+    display: none;
+    align-items: center;
+    gap: 10px;
+  }
+  .add-mode-banner.show { display: flex; }
+  .add-mode-banner button {
+    background: rgba(255,255,255,0.2);
+    border: none;
+    color: white;
+    padding: 3px 10px;
+    border-radius: 12px;
+    font-size: 11px;
+    cursor: pointer;
+  }
+  .add-mode-banner button:hover { background: rgba(255,255,255,0.35); }
+
+  #map.add-mode { cursor: crosshair; }
+
+  /* ── EDIT BUTTON IN DETAIL PANEL ── */
+  .detail-admin-actions {
+    display: none;
+    gap: 8px;
+    padding: 10px 20px;
+    border-top: 1px solid var(--border);
+    background: rgba(184,146,42,0.05);
+    flex-shrink: 0;
+  }
+  .detail-admin-actions.visible { display: flex; }
+
+  .detail-edit-btn {
+    flex: 1;
+    padding: 8px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-family: 'Noto Sans JP', sans-serif;
+    cursor: pointer;
+    border: 1px solid var(--border);
+    background: white;
+    color: var(--ink-light);
+    transition: background 0.15s;
+    text-align: center;
+  }
+  .detail-edit-btn.primary {
+    background: var(--rust);
+    border-color: var(--rust);
+    color: white;
+  }
+  .detail-edit-btn.primary:hover { background: var(--rust-light); }
+  .detail-edit-btn:hover { background: var(--parchment-dark); }
+
+  /* direction visual button */
+  .direction-visual-btn {
+    margin-left: 8px;
+    padding: 2px 8px;
+    border-radius: 4px;
+    border: 1px solid var(--border);
+    background: white;
+    color: var(--ink-light);
+    font-size: 10px;
+    cursor: pointer;
+    font-family: 'Noto Sans JP', sans-serif;
+    transition: background 0.15s;
+  }
+  .direction-visual-btn:hover { background: var(--parchment-dark); }
+
+  /* direction picker map */
+  #direction-map {
+    pointer-events: none; /* ドラッグ操作が地図に奪われないように */
+    /* z-indexを明示してこの要素自体に新しいスタッキングコンテキストを作る。
+       こうしないとLeaflet内部のペイン（タイル/マーカー/ポップアップ等、
+       z-index:200〜700）がこの要素を素通りしてモーダル側で
+       #direction-kofun-shapeと直接比較され、地図タイルが
+       古墳マーカーより上に描画されてしまう。 */
+    z-index: 1;
+  }
+  #direction-map .leaflet-control-container { display: none; }
+  #direction-kofun-shape {
+    z-index: 10;
+  }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div id="header">
+  <div class="header-title">
+    <h1>全墳</h1>
+    <span>ZENFUN — Japan</span>
+  </div>
+  <div class="header-stats" id="header-stats">
+    <span class="stat-pill" id="stat-total">読み込み中…</span>
+    <span class="stat-pill" id="stat-wh"></span>
+    <div class="admin-area" id="admin-area">
+      <button class="admin-btn" id="btn-admin-login" onclick="openLoginModal()">🔐 管理者ログイン</button>
+    </div>
+  </div>
+</div>
+
+<!-- MAIN -->
+<div id="main">
+
+  <!-- SIDEBAR -->
+  <div id="sidebar">
+    <div class="search-area">
+      <div class="search-box">
+        <input type="text" id="search-input" placeholder="古墳名・地名・または「緯度,経度」で移動…">
+        <span class="search-icon">🔍</span>
+      </div>
+      <div class="filter-row">
+        <select id="filter-pref">
+          <option value="">都道府県（全て）</option>
+        </select>
+        <select id="filter-type">
+          <option value="">形式（全て）</option>
+        </select>
+      </div>
+      <div class="filter-row" style="margin-top:8px">
+        <select id="filter-era">
+          <option value="">時代（全て）</option>
+        </select>
+        <select id="filter-sort">
+          <option value="">並び順（デフォルト）</option>
+          <option value="length">規模（大きい順）</option>
+        </select>
+      </div>
+      <div class="filter-checkrow">
+        <label class="filter-check">
+          <input type="checkbox" id="filter-wh">
+          世界遺産のみ
+        </label>
+        <label class="filter-check">
+          <input type="checkbox" id="filter-site">
+          国史跡のみ
+        </label>
+      </div>
+      <div class="result-count" id="result-count"></div>
+    </div>
+
+    <div id="kofun-list"></div>
+
+    <div class="upload-hint">
+      📂 データを追加するには <a href="#">data/kofun.json</a> を編集
+    </div>
+  </div>
+
+  <!-- MAP -->
+  <div style="flex:1;position:relative;display:flex;flex-direction:column;min-width:0;overflow:hidden;">
+    <div id="map"></div>
+
+    <!-- 地図中央のカーソル -->
+    <div id="map-center-cursor">
+      <svg width="20" height="20" viewBox="0 0 20 20">
+        <line x1="10" y1="0" x2="10" y2="6" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
+        <line x1="10" y1="14" x2="10" y2="20" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
+        <line x1="0" y1="10" x2="6" y2="10" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
+        <line x1="14" y1="10" x2="20" y2="10" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
+        <circle cx="10" cy="10" r="2.5" fill="var(--rust)" stroke="white" stroke-width="1.5"/>
+      </svg>
+    </div>
+
+    <!-- Add-mode banner -->
+    <div class="add-mode-banner" id="add-mode-banner">
+      <span>📍 地図をクリックして古墳の位置を指定してください</span>
+      <button onclick="cancelAddMode()">キャンセル</button>
+    </div>
+
+    <!-- Layer switcher -->
+    <div class="layer-control" id="layer-control">
+      <div style="padding:8px 14px;font-size:10px;color:var(--stone);letter-spacing:0.1em;font-weight:600;border-bottom:1px solid rgba(184,146,42,0.15);">地図レイヤー</div>
+      <button class="layer-btn active" id="layer-anaglyph" onclick="setLayer('anaglyph')">🏔 色別標高図</button>
+      <button class="layer-btn" id="layer-std" onclick="setLayer('std')">標準地図</button>
+      <button class="layer-btn" id="layer-pale" onclick="setLayer('pale')">淡色地図</button>
+      <button class="layer-btn" id="layer-photo" onclick="setLayer('photo')">航空写真</button>
+    </div>
+
+    <!-- Legend -->
+    <div class="map-legend">
+      <div class="legend-title">古墳の形式</div>
+      <div class="legend-row">
+        <svg width="22" height="14" viewBox="0 0 22 14"><polygon points="2,10 11,10 8,5" fill="#000"/><circle cx="15" cy="7" r="5" fill="#000"/></svg>
+        <span>前方後円墳</span>
+      </div>
+      <div class="legend-row">
+        <svg width="14" height="14" viewBox="0 0 14 14"><circle cx="7" cy="7" r="6" fill="#000"/></svg>
+        <span>円墳</span>
+      </div>
+      <div class="legend-row">
+        <svg width="14" height="14" viewBox="0 0 14 14"><rect x="1" y="1" width="12" height="12" rx="1.5" fill="#000"/></svg>
+        <span>方墳</span>
+      </div>
+      <div class="legend-row">
+        <svg width="22" height="14" viewBox="0 0 22 14"><polygon points="2,10 8,10 6,5" fill="#000"/><circle cx="15" cy="7" r="5" fill="#000"/></svg>
+        <span>帆立貝形</span>
+      </div>
+      <div style="height:10px"></div>
+      <div class="legend-title">規　模</div>
+      <div class="legend-row"><svg width="8" height="8" viewBox="0 0 8 8"><circle cx="4" cy="4" r="2" fill="#000"/></svg><span>～100m</span></div>
+      <div class="legend-row"><svg width="9" height="9" viewBox="0 0 9 9"><circle cx="4.5" cy="4.5" r="3.5" fill="#000"/></svg><span>100～300m</span></div>
+      <div class="legend-row"><svg width="11" height="11" viewBox="0 0 11 11"><circle cx="5.5" cy="5.5" r="5" fill="#000"/></svg><span>300m～</span></div>
+      <div style="height:10px"></div>
+      <div class="legend-title">保存状態</div>
+      <div class="legend-row"><div class="legend-dot" style="background:#ffffff"></div><span>現存（state 2）</span></div>
+      <div class="legend-row"><div class="legend-dot" style="background:#ffcc00"></div><span>半壊（state 1）</span></div>
+      <div class="legend-row"><div class="legend-dot" style="background:#ff4444"></div><span>消滅（state 0）</span></div>
+    </div>
+
+<!-- DETAIL PANEL -->
+<div id="detail-panel">
+  <button class="detail-close" id="detail-close" onclick="closeDetail()">✕</button>
+  <div id="detail-photo-area"></div>
+  <div class="detail-body" id="detail-body"></div>
+  <div class="detail-admin-actions" id="detail-admin-actions">
+    <button class="detail-edit-btn primary" onclick="openEditModal(activeId)">✏ 編集</button>
+    <button class="detail-edit-btn" style="color:var(--rust);border-color:var(--rust)" onclick="confirmDeleteKofun()">🗑 削除</button>
+  </div>
+</div>
+
+<!-- LOGIN MODAL -->
+<div class="modal-overlay" id="login-modal-overlay">
+  <div class="modal-box">
+    <button class="modal-close-x" onclick="closeLoginModal()">✕</button>
+    <div class="modal-title">管理者ログイン</div>
+    <div class="modal-sub">古墳の追加・削除には管理者権限が必要です</div>
+    <div class="form-row">
+      <label>パスワード</label>
+      <input type="password" id="admin-password-input" placeholder="パスワードを入力">
+    </div>
+    <div class="modal-error" id="login-error">パスワードが正しくありません</div>
+    <div class="modal-actions">
+      <button class="modal-btn" onclick="closeLoginModal()">キャンセル</button>
+      <button class="modal-btn primary" onclick="submitLogin()">ログイン</button>
+    </div>
+  </div>
+</div>
+
+<!-- ADD KOFUN MODAL -->
+<div class="modal-overlay" id="add-modal-overlay">
+  <div class="modal-box wide">
+    <button class="modal-close-x" onclick="closeAddModal()">✕</button>
+    <div class="modal-title">古墳を追加</div>
+    <div class="modal-sub" id="add-modal-coords">緯度: -- / 経度: --</div>
+
+    <div class="form-row">
+      <label>名称 *</label>
+      <input type="text" id="add-name" placeholder="例：〇〇古墳">
+    </div>
+    <div class="form-row">
+      <label>よみがな</label>
+      <input type="text" id="add-yomi" placeholder="例：まるまるこふん">
+    </div>
+    <div class="form-grid2">
+      <div class="form-row">
+        <label>都道府県 *</label>
+        <input type="text" id="add-prefecture" placeholder="例：大阪府">
+      </div>
+      <div class="form-row">
+        <label>市区町村 *</label>
+        <input type="text" id="add-city" placeholder="例：堺市">
+      </div>
+    </div>
+    <div class="form-grid2">
+      <div class="form-row">
+        <label>時代</label>
+        <input type="text" id="add-era" placeholder="例：古墳時代中期">
+      </div>
+      <div class="form-row">
+        <label>世紀</label>
+        <input type="text" id="add-century" placeholder="例：5世紀前半">
+      </div>
+    </div>
+    <div class="form-grid2">
+      <div class="form-row">
+        <label>形式 *</label>
+        <select id="add-type">
+          <option value="前方後円墳">前方後円墳</option>
+          <option value="円墳">円墳</option>
+          <option value="方墳">方墳</option>
+          <option value="帆立貝形古墳">帆立貝形古墳</option>
+          <option value="その他">その他</option>
+        </select>
+      </div>
+      <div class="form-row">
+        <label>保存状態</label>
+        <select id="add-state">
+          <option value="2">現存</option>
+          <option value="1">半壊</option>
+          <option value="0">消滅</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-grid2">
+      <div class="form-row">
+        <label>墳丘長 (m)</label>
+        <input type="number" id="add-length" step="0.1" placeholder="例：120">
+      </div>
+      <div class="form-row">
+        <label>高さ (m)</label>
+        <input type="number" id="add-height" step="0.1" placeholder="例：10">
+      </div>
+    </div>
+    <div class="form-row">
+      <label>主軸方向（度・任意）<button type="button" class="direction-visual-btn" onclick="openDirectionPicker('add')">🧭 地図上で回して設定</button></label>
+      <input type="number" id="add-direction" placeholder="例：180">
+    </div>
+    <div class="form-row">
+      <label>説明</label>
+      <textarea id="add-description" placeholder="補足説明など"></textarea>
+    </div>
+    <div class="form-row">
+      <label>写真URL</label>
+      <input type="url" id="add-photo" placeholder="https://...">
+    </div>
+    <div class="form-checks">
+      <label><input type="checkbox" id="add-wh"> 世界遺産</label>
+      <label><input type="checkbox" id="add-site"> 国指定史跡</label>
+    </div>
+    <div class="modal-error" id="add-error"></div>
+    <div class="modal-actions">
+      <button class="modal-btn" onclick="closeAddModal()">キャンセル</button>
+      <button class="modal-btn primary" onclick="submitAddKofun()">登録する</button>
+    </div>
+  </div>
+</div>
+
+<!-- EDIT KOFUN MODAL -->
+<div class="modal-overlay" id="edit-modal-overlay">
+  <div class="modal-box wide">
+    <button class="modal-close-x" onclick="closeEditModal()">✕</button>
+    <div class="modal-title">古墳を編集</div>
+    <div class="modal-sub" id="edit-modal-coords">緯度: -- / 経度: --</div>
+
+    <div class="form-row">
+      <label>名称 *</label>
+      <input type="text" id="edit-name" placeholder="例：〇〇古墳">
+    </div>
+    <div class="form-row">
+      <label>よみがな</label>
+      <input type="text" id="edit-yomi" placeholder="例：まるまるこふん">
+    </div>
+    <div class="form-grid2">
+      <div class="form-row">
+        <label>都道府県 *</label>
+        <input type="text" id="edit-prefecture" placeholder="例：大阪府">
+      </div>
+      <div class="form-row">
+        <label>市区町村 *</label>
+        <input type="text" id="edit-city" placeholder="例：堺市">
+      </div>
+    </div>
+    <div class="form-grid2">
+      <div class="form-row">
+        <label>時代</label>
+        <input type="text" id="edit-era" placeholder="例：古墳時代中期">
+      </div>
+      <div class="form-row">
+        <label>世紀</label>
+        <input type="text" id="edit-century" placeholder="例：5世紀前半">
+      </div>
+    </div>
+    <div class="form-grid2">
+      <div class="form-row">
+        <label>形式 *</label>
+        <select id="edit-type">
+          <option value="前方後円墳">前方後円墳</option>
+          <option value="円墳">円墳</option>
+          <option value="方墳">方墳</option>
+          <option value="帆立貝形古墳">帆立貝形古墳</option>
+          <option value="その他">その他</option>
+        </select>
+      </div>
+      <div class="form-row">
+        <label>保存状態</label>
+        <select id="edit-state">
+          <option value="2">現存</option>
+          <option value="1">半壊</option>
+          <option value="0">消滅</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-grid2">
+      <div class="form-row">
+        <label>墳丘長 (m)</label>
+        <input type="number" id="edit-length" step="0.1" placeholder="例：120">
+      </div>
+      <div class="form-row">
+        <label>高さ (m)</label>
+        <input type="number" id="edit-height" step="0.1" placeholder="例：10">
+      </div>
+    </div>
+    <div class="form-row">
+      <label>主軸方向（度・任意）<button type="button" class="direction-visual-btn" id="edit-direction-visual-btn" onclick="openDirectionPicker('edit')">🧭 地図上で回して設定</button></label>
+      <input type="number" id="edit-direction" placeholder="例：180" oninput="syncDirectionFromInput()">
+    </div>
+    <div class="form-row">
+      <label>説明</label>
+      <textarea id="edit-description" placeholder="補足説明など"></textarea>
+    </div>
+    <div class="form-row">
+      <label>写真URL</label>
+      <input type="url" id="edit-photo" placeholder="https://...">
+    </div>
+    <div class="form-checks">
+      <label><input type="checkbox" id="edit-wh"> 世界遺産</label>
+      <label><input type="checkbox" id="edit-site"> 国指定史跡</label>
+    </div>
+    <div class="modal-error" id="edit-error"></div>
+    <div class="modal-actions" style="justify-content:space-between">
+      <button class="modal-btn" style="color:var(--rust);border-color:var(--rust)" onclick="confirmDeleteKofun()">🗑 削除</button>
+      <div style="display:flex;gap:8px">
+        <button class="modal-btn" onclick="closeEditModal()">キャンセル</button>
+        <button class="modal-btn primary" onclick="submitEditKofun()">保存する</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- DIRECTION PICKER MODAL -->
+<div class="modal-overlay" id="direction-modal-overlay">
+  <div class="modal-box" style="width:320px;text-align:center">
+    <button class="modal-close-x" onclick="closeDirectionPicker()">✕</button>
+    <div class="modal-title" style="margin-bottom:6px">主軸方向を設定</div>
+    <div class="modal-sub" style="margin-bottom:16px">古墳を回してドラッグで方向を設定してください</div>
+    <div id="direction-picker-container" style="position:relative;width:240px;height:240px;margin:0 auto 16px;user-select:none;touch-action:none;border-radius:50%;overflow:hidden;box-shadow:var(--shadow)">
+      <!-- 背景の地図タイル（実際の地形を投影） -->
+      <div id="direction-map" style="position:absolute;top:0;left:0;width:100%;height:100%;"></div>
+      <!-- compass ring overlay -->
+      <svg width="240" height="240" viewBox="0 0 240 240" style="position:absolute;top:0;left:0;pointer-events:none;z-index:2">
+        <circle cx="120" cy="120" r="118" fill="none" stroke="var(--gold)" stroke-width="3"/>
+        <text x="120" y="18" text-anchor="middle" font-size="12" font-weight="700" fill="var(--rust)" font-family="sans-serif" style="filter:drop-shadow(0 0 2px white)">N</text>
+        <text x="222" y="124" text-anchor="middle" font-size="12" fill="var(--ink)" font-family="sans-serif" style="filter:drop-shadow(0 0 2px white)">E</text>
+        <text x="120" y="232" text-anchor="middle" font-size="12" fill="var(--ink)" font-family="sans-serif" style="filter:drop-shadow(0 0 2px white)">S</text>
+        <text x="14" y="124" text-anchor="middle" font-size="12" fill="var(--ink)" font-family="sans-serif" style="filter:drop-shadow(0 0 2px white)">W</text>
+        <line x1="120" y1="6" x2="120" y2="20" stroke="var(--rust)" stroke-width="2.5"/>
+      </svg>
+      <!-- draggable kofun shape -->
+      <div id="direction-kofun-shape" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%) rotate(90deg);cursor:grab;width:96px;height:96px;display:flex;align-items:center;justify-content:center;pointer-events:auto">
+        <svg id="direction-shape-svg" width="96" height="96" viewBox="0 0 96 96" style="filter:drop-shadow(0 1px 3px rgba(0,0,0,0.5))">
+          <!-- placeholder, replaced dynamically -->
+        </svg>
+      </div>
+    </div>
+    <div style="font-size:13px;color:var(--ink);margin-bottom:12px">
+      方向: <strong id="direction-degree-display">0</strong>°
+    </div>
+    <div class="modal-actions" style="justify-content:center">
+      <button class="modal-btn" onclick="closeDirectionPicker()">キャンセル</button>
+      <button class="modal-btn primary" onclick="applyDirectionPicker()">この方向で設定</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+// ── LAYERS ──────────────────────────────────────────────
+const tileLayers = {
+  anaglyph: L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/anaglyphmap_color/{z}/{x}/{y}.png', {
+    attribution: '<a href="https://maps.gsi.go.jp/development/ichiran.html" target="_blank">地理院タイル</a>',
+    maxZoom: 15
+  }),
+  std: L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/std/{z}/{x}/{y}.png', {
+    attribution: '<a href="https://maps.gsi.go.jp/development/ichiran.html" target="_blank">地理院タイル</a>',
+    maxZoom: 18
+  }),
+  pale: L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/pale/{z}/{x}/{y}.png', {
+    attribution: '<a href="https://maps.gsi.go.jp/development/ichiran.html" target="_blank">地理院タイル</a>',
+    maxZoom: 18
+  }),
+  photo: L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/seamlessphoto/{z}/{x}/{y}.jpg', {
+    attribution: '<a href="https://maps.gsi.go.jp/development/ichiran.html" target="_blank">地理院タイル</a>',
+    maxZoom: 18
+  })
+};
+
+let currentLayerKey = 'anaglyph';
+const map = L.map('map', {
+  center: [36.0, 136.0],
+  zoom: 6,
+  layers: [tileLayers.anaglyph],
+  zoomControl: true
+});
+
+// Move zoom control
+map.zoomControl.setPosition('topright');
+
+// Ensure map renders correctly after layout settles
+setTimeout(() => map.invalidateSize(), 100);
+
+function setLayer(key) {
+  map.removeLayer(tileLayers[currentLayerKey]);
+  map.addLayer(tileLayers[key]);
+  currentLayerKey = key;
+  document.querySelectorAll('.layer-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('layer-' + key).classList.add('active');
+}
+
+// ── STATE ─────────────────────────────────────────────────
+let allKofun = [];
+let markers = {};
+let activeId = null;
+
+// ── FETCH + INIT ──────────────────────────────────────────
+async function init() {
+  const [kofunRes, statsRes] = await Promise.all([
+    fetch('/api/kofun'),
+    fetch('/api/stats')
+  ]);
+  allKofun = await kofunRes.json();
+  const stats = await statsRes.json();
+
+  document.getElementById('stat-total').textContent = `全 ${stats.total} 件`;
+  document.getElementById('stat-wh').textContent = `🏛 世界遺産 ${stats.world_heritage_count} 件`;
+
+  // Populate filters
+  const prefSel = document.getElementById('filter-pref');
+  stats.prefectures.forEach(p => {
+    const o = document.createElement('option'); o.value = p; o.textContent = p;
+    prefSel.appendChild(o);
+  });
+  const eraSel = document.getElementById('filter-era');
+  stats.eras.forEach(e => {
+    const o = document.createElement('option'); o.value = e; o.textContent = e;
+    eraSel.appendChild(o);
+  });
+  const typeSel = document.getElementById('filter-type');
+  stats.types.forEach(t => {
+    const o = document.createElement('option'); o.value = t; o.textContent = t;
+    typeSel.appendChild(o);
+  });
+
+  renderAll(allKofun);
+
+  // ズーム時にマーカーサイズを再計算して保つ
+  let currentFilteredList = allKofun;
+  map.on('zoomend', () => {
+    // 現在のフィルタ状態を保持してマーカーを再レンダリング
+    clearMarkers();
+    renderAll(currentFilteredList);
+  });
+  
+  // フィルタ結果を保存
+  const originalApplyFilters = applyFilters;
+  window.applyFilters = function() {
+    originalApplyFilters();
+    // 現在のリストを取得
+    const items = document.querySelectorAll('.kofun-item');
+    currentFilteredList = Array.from(items).map(el => {
+      const id = parseInt(el.id.replace('item-', ''));
+      return allKofun.find(k => k.id === id);
+    });
+  };
+}
+
+// ── CENTURY COLOR ─────────────────────────────────────────
+function getCenturyColor(century) {
+  if (!century) return '#aaaaaa';
+  if (century.includes('3世紀')) return '#e84393';
+  if (century.includes('4世紀')) return '#e8a020';
+  if (century.includes('5世紀')) return '#34c45a';
+  if (century.includes('6世紀')) return '#2090e8';
+  if (century.includes('7世紀') || century.includes('8世紀')) return '#9b59e8';
+  return '#aaaaaa';
+}
+
+// ── STATE COLOR ───────────────────────────────────────────
+function getStateColor(state) {
+  if (state === 0) return '#ff4444'; // 消滅 → 赤
+  if (state === 1) return '#ffcc00'; // 半壊 → 黄
+  return '#ffffff';                  // 現存 → 白（state=2 またはデフォルト）
+}
+
+function getStateLabel(state) {
+  if (state === 0) return '消滅';
+  if (state === 1) return '半壊';
+  return '現存';
+}
+
+// ── SHAPE SVG ─────────────────────────────────────────────
+function getShapeSVG(type, size, state) {
+  const s = size;
+  const color = getStateColor(state);
+  const colorKofun = color; // 前方部
+  const colorEnko = color;  // 後円部
+
+  if ((type.includes('前方後円墳') || type.includes('帆立貝形古墳'))) {
+    // 1. 各パーツのサイズ定義
+    const rR = Math.round(s * 0.22); // 後円部の半径
+    const triH = Math.round(s * 0.55); // 前方部の長さ（高さ）
+    const triBaseW = Math.round(rR * 2.2); // 前方部の底辺の幅
+
+    // 2. 図形全体の横幅と、中心に配置するためのオフセット計算
+    const totalW = triH + rR;
+    const startX = (s - totalW) / 2; // 左側の余白
+
+    // 3. 後円部（右側の円）の中心座標
+    const cxR = startX + triH;
+    const cyR = s / 2;
+
+    // 4. 前方部（左側の三角形）の頂点座標
+    const triLeftX = startX;
+    const triTopY = cyR - triBaseW / 2;
+    const triBottomY = cyR + triBaseW / 2;
+    const triTipX = cxR;
+    const triTipY = cyR;
+
+    // xmlnsのURLも正しいW3C規格（http://w3.org）に修正
+    return `<svg xmlns="http://w3.org" width="${s}" height="${s}" viewBox="0 0 ${s} ${s}" style="display:block; width:100%; height:100%;">
+      <g>
+        <polygon points="${triLeftX},${triTopY} ${triLeftX},${triBottomY} ${triTipX},${triTipY}" fill="${colorKofun}"/>
+        <circle cx="${cxR}" cy="${cyR}" r="${rR}" fill="${colorEnko}"/>
+      </g>
+    </svg>`;
+  }
+  
+  // 前方後円墳以外（円墳・方墳など）のフォールバック用
+  return `<svg xmlns="http://w3.org" width="${s}" height="${s}" viewBox="0 0 ${s} ${s}">
+    <circle cx="${s/2}" cy="${s/2}" r="${s/3}" fill="${colorEnko}"/>
+  </svg>`;
+}
+
+// ── MARKER ────────────────────────────────────────────────
+function createMarker(k) {
+  let size = 14;
+  if (k.length_m) {
+    if (k.length_m >= 400)       { size = 42; }
+    else if (k.length_m >= 300) { size = 38; }
+    else if (k.length_m >= 200) { size = 34; }
+    else if (k.length_m >= 100) { size = 28; }
+    else if (k.length_m >= 50)  { size = 22; }
+    else                        { size = 16; }
+  } else {
+    size = 12;
+  }
+
+  // --- 【新規追加】ズームレベルに応じたサイズ制限ロジック ---
+  const currentZoom = map.getZoom();
+  
+  if (currentZoom <= 10) {
+    // ズーム10以下（広域）なら、どんなに大きい古墳も一律で最小サイズに固定
+    size = 10; 
+  } else if (currentZoom < 14) {
+    // ズーム11〜13の間は、地図の縮小に合わせてマーカーサイズを縮小
+    // （例: ズームが1下がるごとにサイズを約30%ずつ小さくする）
+    const zoomDiff = 14 - currentZoom;
+    size = Math.max(10, Math.round(size * (1 - zoomDiff * 0.25)));
+  }
+  // ※ズーム14以上（詳細）であれば、元々のsize（最大42px）がそのまま適用されます
+  // ----------------------------------------------------
+
+  // 前方後円墳系は横長の箱に入れる
+  const isHorizontal = k.type.includes('前方後') || k.type.includes('帆立貝');
+  const w = isHorizontal ? Math.round(size * 1.6) : size;
+  const h = size;
+
+  const svg = getShapeSVG(k.type, size, k.state);
+  const rotation = k.direction + 90 || 0;
+
+  const icon = L.divIcon({
+    className: '',
+    html: `<div style="width:${w}px; height:${h}px; display:flex; align-items:center; justify-content:center; filter:drop-shadow(0 1.5px 4px rgba(0,0,0,0.6)); cursor:pointer; transform:rotate(${rotation}deg)">
+            <div style="width:${size}px; height:${size}px;">${svg}</div>
+           </div>`,
+    iconSize: [w, h],
+    iconAnchor: [w / 2, h / 2],
+    popupAnchor: [0, -h / 2]
+  });
+
+  const m = L.marker([k.lat, k.lng], { icon })
+    .addTo(map)
+    .bindPopup(`
+      <div class="popup-name">${k.name}</div>
+      <div class="popup-sub">${k.prefecture} ${k.city} | ${k.type}</div>
+      <button class="popup-btn" onclick="showDetail(${k.id})">詳細を見る</button>
+    `, { maxWidth: 220 });
+
+  m.on('click', () => { highlightListItem(k.id); });
+  markers[k.id] = m;
+}
+
+// 地図の拡大・縮小が完了した時に、全マーカーのサイズを再計算して配置し直す
+map.on('zoomend', () => {
+  // currentList（現在地図に描画すべき古墳データの配列）を渡して再レンダリング
+  // ※お使いの環境の変数名に合わせて適宜変更してください
+  if (typeof currentList !== 'undefined') {
+    renderAll(currentList); 
+  }
+});
+
+function clearMarkers() {
+  Object.values(markers).forEach(m => map.removeLayer(m));
+  markers = {};
+}
+
+function renderAll(list) {
+  clearMarkers();
+  list.forEach(k => createMarker(k));
+  renderList(list);
+}
+
+// ── LIST ──────────────────────────────────────────────────
+function renderList(list) {
+  const container = document.getElementById('kofun-list');
+  document.getElementById('result-count').textContent = `${list.length} 件を表示中`;
+
+  if (list.length === 0) {
+    container.innerHTML = `<div class="empty-state"><div class="icon">🔍</div><p>条件に一致する古墳が見つかりませんでした</p></div>`;
+    return;
+  }
+
+  container.innerHTML = list.map((k, i) => {
+    // マーカーのサイズに基づいたドットサイズ
+    let dotSize = 6;
+    if (k.length_m) {
+      if (k.length_m >= 400) dotSize = 11;
+      else if (k.length_m >= 300) dotSize = 10;
+      else if (k.length_m >= 200) dotSize = 9;
+      else if (k.length_m >= 100) dotSize = 8;
+      else if (k.length_m >= 50) dotSize = 7;
+      else dotSize = 6;
+    } else {
+      dotSize = 5;
+    }
+    
+    return `
+    <div class="kofun-item" id="item-${k.id}" onclick="onListClick(${k.id})"
+         style="animation-delay:${Math.min(i * 0.03, 0.5)}s">
+      <div class="kofun-item-name" style="display:flex;align-items:center;gap:7px">
+        <span style="display:inline-block;width:${dotSize}px;height:${dotSize}px;border-radius:50%;background:#000;flex-shrink:0"></span>
+        ${k.name}
+      </div>
+      <div class="kofun-item-sub">
+        <span>${k.prefecture} ${k.city}</span>
+        <span class="tag tag-type">${k.type}</span>
+        ${k.length_m ? `<span class="tag tag-era">${k.length_m}m</span>` : '<span class="tag tag-era">規模不明</span>'}
+        ${k.world_heritage ? '<span class="tag tag-wh">世界遺産</span>' : ''}
+      </div>
+    </div>
+  `}).join('');
+}
+
+function highlightListItem(id) {
+  document.querySelectorAll('.kofun-item').forEach(el => el.classList.remove('active'));
+  const el = document.getElementById('item-' + id);
+  if (el) {
+    el.classList.add('active');
+    el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+  activeId = id;
+}
+
+function onListClick(id) {
+  const k = allKofun.find(x => x.id === id);
+  if (!k) return;
+  map.flyTo([k.lat, k.lng], 14, { duration: 1.2 });
+  if (markers[id]) markers[id].openPopup();
+  highlightListItem(id);
+  showDetail(id);
+}
+
+// ── DETAIL ────────────────────────────────────────────────
+function showDetail(id) {
+  const k = allKofun.find(x => x.id === id);
+  if (!k) return;
+
+  const photoArea = document.getElementById('detail-photo-area');
+  if (k.photo_url) {
+    photoArea.innerHTML = `<img src="${k.photo_url}" class="detail-photo" alt="${k.name}" onerror="this.parentElement.innerHTML='<div class=\\'detail-photo-placeholder\\'>🗿</div>'">`;
+  } else {
+    photoArea.innerHTML = `<div class="detail-photo-placeholder">🗿</div>`;
+  }
+
+  const lengthText = k.length_m ? `${k.length_m} m` : '不明';
+  const heightText = k.height_m ? `${k.height_m} m` : '不明';
+  const stateText = getStateLabel(k.state);
+  const stateColor = getStateColor(k.state);
+
+  document.getElementById('detail-body').innerHTML = `
+    <div class="detail-name">${k.name}</div>
+    <div class="detail-yomi">${k.yomi}</div>
+    <div class="detail-tags">
+      <span class="tag tag-type">${k.type}</span>
+      <span class="tag tag-era">${k.era}</span>
+      <span class="tag tag-era">${k.century}</span>
+    </div>
+    <dl class="detail-meta">
+      <dt>所在地</dt><dd>${k.prefecture} ${k.city}</dd>
+      <dt>墳丘長</dt><dd>${lengthText}</dd>
+      <dt>高さ</dt><dd>${heightText}</dd>
+      <dt>保存状態</dt><dd><span style="display:inline-flex;align-items:center;gap:6px"><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${stateColor};border:1.5px solid rgba(0,0,0,0.2);flex-shrink:0"></span>${stateText}</span></dd>
+    </dl>
+    <div class="detail-divider"></div>
+    <div class="detail-desc">${k.description}</div>
+    <div class="detail-badges">
+      ${k.world_heritage ? '<span class="badge badge-wh">🏛 ユネスコ世界文化遺産</span>' : ''}
+      ${k.national_historic_site ? '<span class="badge badge-site">⛩ 国指定史跡</span>' : ''}
+    </div>
+  `;
+
+  document.getElementById('detail-panel').classList.add('open');
+  highlightListItem(id);
+  // 管理者ならば編集・削除ボタンを表示
+  const adminActions = document.getElementById('detail-admin-actions');
+  if (isAdmin) {
+    adminActions.classList.add('visible');
+  } else {
+    adminActions.classList.remove('visible');
+  }
+}
+
+function closeDetail() {
+  document.getElementById('detail-panel').classList.remove('open');
+}
+
+// ── FILTERS ───────────────────────────────────────────────
+let debounceTimer;
+function onFilterChange() {
+  clearTimeout(debounceTimer);
+  debounceTimer = setTimeout(applyFilters, 250);
+}
+
+function applyFilters() {
+  const rawQ = document.getElementById('search-input').value;
+  // 緯度,経度パターンは通常フィルタとして扱わない
+  const coordMatch = rawQ.trim().match(/^(-?\d+\.?\d*)\s*[,，\s]\s*(-?\d+\.?\d*)$/);
+  if (coordMatch) return;
+  const q = rawQ.toLowerCase();
+  const pref = document.getElementById('filter-pref').value;
+  const era = document.getElementById('filter-era').value;
+  const type = document.getElementById('filter-type').value;
+  const sort = document.getElementById('filter-sort').value;
+  const wh = document.getElementById('filter-wh').checked;
+  const site = document.getElementById('filter-site').checked;
+
+  let list = allKofun.filter(k => {
+    if (pref && k.prefecture !== pref) return false;
+    if (era && !k.era.includes(era)) return false;
+    if (type && !k.type.includes(type)) return false;
+    if (wh && !k.world_heritage) return false;
+    if (site && !k.national_historic_site) return false;
+    if (q) {
+      const haystack = [k.name, k.yomi, k.description, k.prefecture, k.city].join(' ').toLowerCase();
+      if (!haystack.includes(q)) return false;
+    }
+    return true;
+  });
+
+  if (sort === 'length') {
+    list = [...list].sort((a, b) => (b.length_m || 0) - (a.length_m || 0));
+  }
+
+  renderAll(list);
+}
+
+document.getElementById('search-input').addEventListener('input', onFilterChange);
+document.getElementById('search-input').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') {
+    // 緯度,経度パターンのチェック
+    const val = e.target.value.trim();
+    const coordMatch = val.match(/^(-?\d+\.?\d*)\s*[,，\s]\s*(-?\d+\.?\d*)$/);
+    if (coordMatch) {
+      const lat = parseFloat(coordMatch[1]);
+      const lng = parseFloat(coordMatch[2]);
+      if (lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) {
+        map.flyTo([lat, lng], 14, { duration: 1.2 });
+        e.target.value = '';
+        document.getElementById('result-count').textContent = `📍 ${lat.toFixed(5)}, ${lng.toFixed(5)} に移動`;
+        return;
+      }
+    }
+    applyFilters();
+  }
+});
+document.getElementById('filter-pref').addEventListener('change', onFilterChange);
+document.getElementById('filter-era').addEventListener('change', onFilterChange);
+document.getElementById('filter-type').addEventListener('change', onFilterChange);
+document.getElementById('filter-sort').addEventListener('change', onFilterChange);
+document.getElementById('filter-wh').addEventListener('change', onFilterChange);
+document.getElementById('filter-site').addEventListener('change', onFilterChange);
+
+// Close detail on map click
+map.on('click', () => {
+  document.querySelectorAll('.kofun-item').forEach(el => el.classList.remove('active'));
+});
+
+// ── ADMIN AUTH ────────────────────────────────────────────
+let isAdmin = false;
+let addMode = false;
+let pendingLatLng = null;
+
+async function checkAdminStatus() {
+  try {
+    const res = await fetch('/api/admin/status');
+    const data = await res.json();
+    isAdmin = !!data.is_admin;
+  } catch (e) {
+    isAdmin = false;
+  }
+  renderAdminArea();
+}
+
+function renderAdminArea() {
+  const area = document.getElementById('admin-area');
+  if (isAdmin) {
+    area.innerHTML = `
+      <span class="admin-status">👤 管理者ログイン中</span>
+      <button class="admin-btn ${addMode ? 'active' : 'primary'}" onclick="toggleAddMode()">${addMode ? '✕ 追加モード解除' : '📍 古墳を追加'}</button>
+      <button class="admin-btn" onclick="adminLogout()">ログアウト</button>
+    `;
+  } else {
+    area.innerHTML = `<button class="admin-btn" id="btn-admin-login" onclick="openLoginModal()">🔐 管理者ログイン</button>`;
+  }
+  // 詳細パネルの編集・削除ボタン表示制御
+  const adminActions = document.getElementById('detail-admin-actions');
+  if (adminActions) {
+    if (isAdmin && document.getElementById('detail-panel').classList.contains('open') && activeId) {
+      adminActions.classList.add('visible');
+    } else {
+      adminActions.classList.remove('visible');
+    }
+  }
+}
+
+function openLoginModal() {
+  document.getElementById('admin-password-input').value = '';
+  document.getElementById('login-error').classList.remove('show');
+  document.getElementById('login-modal-overlay').classList.add('open');
+  setTimeout(() => document.getElementById('admin-password-input').focus(), 50);
+}
+
+function closeLoginModal() {
+  document.getElementById('login-modal-overlay').classList.remove('open');
+}
+
+async function submitLogin() {
+  const password = document.getElementById('admin-password-input').value;
+  const errorEl = document.getElementById('login-error');
+  try {
+    const res = await fetch('/api/admin/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password })
+    });
+    const data = await res.json();
+    if (res.ok && data.success) {
+      isAdmin = true;
+      closeLoginModal();
+      renderAdminArea();
+    } else {
+      errorEl.textContent = data.error || 'パスワードが正しくありません';
+      errorEl.classList.add('show');
+    }
+  } catch (e) {
+    errorEl.textContent = '通信エラーが発生しました';
+    errorEl.classList.add('show');
+  }
+}
+
+document.getElementById('admin-password-input').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') submitLogin();
+});
+
+async function adminLogout() {
+  try {
+    await fetch('/api/admin/logout', { method: 'POST' });
+  } catch (e) {}
+  isAdmin = false;
+  if (addMode) cancelAddMode();
+  renderAdminArea();
+}
+
+// ── ADD-MODE (地図クリックで位置指定) ─────────────────────
+function toggleAddMode() {
+  if (!isAdmin) return;
+  addMode = !addMode;
+  document.getElementById('map').classList.toggle('add-mode', addMode);
+  document.getElementById('add-mode-banner').classList.toggle('show', addMode);
+  renderAdminArea();
+}
+
+function cancelAddMode() {
+  addMode = false;
+  document.getElementById('map').classList.remove('add-mode');
+  document.getElementById('add-mode-banner').classList.remove('show');
+  renderAdminArea();
+}
+
+map.on('click', (e) => {
+  if (!addMode) return;
+  pendingLatLng = e.latlng;
+  openAddModal(e.latlng);
+});
+
+function openAddModal(latlng) {
+  document.getElementById('add-modal-coords').textContent =
+    `緯度: ${latlng.lat.toFixed(6)} / 経度: ${latlng.lng.toFixed(6)}`;
+
+  ['add-name', 'add-yomi', 'add-prefecture', 'add-city', 'add-era', 'add-century',
+   'add-length', 'add-height', 'add-direction', 'add-description', 'add-photo'].forEach(id => {
+    document.getElementById(id).value = '';
+  });
+  document.getElementById('add-type').value = '前方後円墳';
+  document.getElementById('add-state').value = '2';
+  document.getElementById('add-wh').checked = false;
+  document.getElementById('add-site').checked = false;
+  document.getElementById('add-error').classList.remove('show');
+
+  document.getElementById('add-modal-overlay').classList.add('open');
+  setTimeout(() => document.getElementById('add-name').focus(), 50);
+}
+
+function closeAddModal() {
+  document.getElementById('add-modal-overlay').classList.remove('open');
+}
+
+async function submitAddKofun() {
+  if (!pendingLatLng) return;
+  const errorEl = document.getElementById('add-error');
+  errorEl.classList.remove('show');
+
+  const name = document.getElementById('add-name').value.trim();
+  const prefecture = document.getElementById('add-prefecture').value.trim();
+  const city = document.getElementById('add-city').value.trim();
+  const type = document.getElementById('add-type').value;
+
+  if (!name || !prefecture || !city) {
+    errorEl.textContent = '名称・都道府県・市区町村は必須です';
+    errorEl.classList.add('show');
+    return;
+  }
+
+  const payload = {
+    name, prefecture, city, type,
+    yomi: document.getElementById('add-yomi').value.trim(),
+    era: document.getElementById('add-era').value.trim(),
+    century: document.getElementById('add-century').value.trim(),
+    lat: pendingLatLng.lat,
+    lng: pendingLatLng.lng,
+    length_m: document.getElementById('add-length').value,
+    height_m: document.getElementById('add-height').value,
+    direction: document.getElementById('add-direction').value,
+    description: document.getElementById('add-description').value.trim(),
+    photo_url: document.getElementById('add-photo').value.trim(),
+    world_heritage: document.getElementById('add-wh').checked,
+    national_historic_site: document.getElementById('add-site').checked,
+    state: parseInt(document.getElementById('add-state').value, 10)
+  };
+
+  try {
+    const res = await fetch('/api/kofun', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json();
+
+    if (res.status === 401) {
+      errorEl.textContent = 'セッションが切れました。再度ログインしてください。';
+      errorEl.classList.add('show');
+      isAdmin = false;
+      renderAdminArea();
+      return;
+    }
+    if (!res.ok) {
+      errorEl.textContent = data.error || '登録に失敗しました';
+      errorEl.classList.add('show');
+      return;
+    }
+
+    allKofun.push(data);
+    closeAddModal();
+    cancelAddMode();
+
+    document.getElementById('stat-total').textContent = `全 ${allKofun.length} 件`;
+    document.getElementById('stat-wh').textContent = `🏛 世界遺産 ${allKofun.filter(k => k.world_heritage).length} 件`;
+
+    applyFilters();
+    map.flyTo([data.lat, data.lng], 15, { duration: 1 });
+    setTimeout(() => { if (markers[data.id]) markers[data.id].openPopup(); }, 1100);
+  } catch (e) {
+    errorEl.textContent = '通信エラーが発生しました';
+    errorEl.classList.add('show');
+  }
+}
+
+// ── EDIT KOFUN ─────────────────────────────────────────────
+let editingKofunId = null;
+
+function openEditModal(id) {
+  const k = allKofun.find(x => x.id === id);
+  if (!k) return;
+  editingKofunId = id;
+
+  document.getElementById('edit-modal-coords').textContent =
+    `緯度: ${k.lat.toFixed(6)} / 経度: ${k.lng.toFixed(6)}`;
+
+  document.getElementById('edit-name').value = k.name || '';
+  document.getElementById('edit-yomi').value = k.yomi || '';
+  document.getElementById('edit-prefecture').value = k.prefecture || '';
+  document.getElementById('edit-city').value = k.city || '';
+  document.getElementById('edit-era').value = k.era || '';
+  document.getElementById('edit-century').value = k.century || '';
+  document.getElementById('edit-type').value = k.type || '前方後円墳';
+  document.getElementById('edit-state').value = String(k.state ?? 2);
+  document.getElementById('edit-length').value = k.length_m !== '' && k.length_m != null ? k.length_m : '';
+  document.getElementById('edit-height').value = k.height_m !== '' && k.height_m != null ? k.height_m : '';
+  document.getElementById('edit-direction').value = k.direction != null ? k.direction : '';
+  document.getElementById('edit-description').value = k.description || '';
+  document.getElementById('edit-photo').value = k.photo_url || '';
+  document.getElementById('edit-wh').checked = !!k.world_heritage;
+  document.getElementById('edit-site').checked = !!k.national_historic_site;
+  document.getElementById('edit-error').classList.remove('show');
+
+  document.getElementById('edit-modal-overlay').classList.add('open');
+  setTimeout(() => document.getElementById('edit-name').focus(), 50);
+}
+
+function closeEditModal() {
+  document.getElementById('edit-modal-overlay').classList.remove('open');
+  editingKofunId = null;
+}
+
+async function submitEditKofun() {
+  if (!editingKofunId) return;
+  const errorEl = document.getElementById('edit-error');
+  errorEl.classList.remove('show');
+
+  const name = document.getElementById('edit-name').value.trim();
+  const prefecture = document.getElementById('edit-prefecture').value.trim();
+  const city = document.getElementById('edit-city').value.trim();
+  const type = document.getElementById('edit-type').value;
+
+  if (!name || !prefecture || !city) {
+    errorEl.textContent = '名称・都道府県・市区町村は必須です';
+    errorEl.classList.add('show');
+    return;
+  }
+
+  const payload = {
+    name, prefecture, city, type,
+    yomi: document.getElementById('edit-yomi').value.trim(),
+    era: document.getElementById('edit-era').value.trim(),
+    century: document.getElementById('edit-century').value.trim(),
+    length_m: document.getElementById('edit-length').value,
+    height_m: document.getElementById('edit-height').value,
+    direction: document.getElementById('edit-direction').value,
+    description: document.getElementById('edit-description').value.trim(),
+    photo_url: document.getElementById('edit-photo').value.trim(),
+    world_heritage: document.getElementById('edit-wh').checked,
+    national_historic_site: document.getElementById('edit-site').checked,
+    state: parseInt(document.getElementById('edit-state').value, 10)
+  };
+
+  try {
+    const res = await fetch(`/api/kofun/${editingKofunId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json();
+
+    if (res.status === 401) {
+      errorEl.textContent = 'セッションが切れました。再度ログインしてください。';
+      errorEl.classList.add('show');
+      isAdmin = false; renderAdminArea(); return;
+    }
+    if (!res.ok) {
+      errorEl.textContent = data.error || '更新に失敗しました';
+      errorEl.classList.add('show');
+      return;
+    }
+
+    // allKofunを更新
+    const idx = allKofun.findIndex(k => k.id === editingKofunId);
+    if (idx !== -1) allKofun[idx] = data;
+
+    closeEditModal();
+    closeDetail();
+    applyFilters();
+    map.flyTo([data.lat, data.lng], 14, { duration: 0.8 });
+    setTimeout(() => {
+      showDetail(data.id);
+      if (markers[data.id]) markers[data.id].openPopup();
+    }, 900);
+  } catch (e) {
+    errorEl.textContent = '通信エラーが発生しました';
+    errorEl.classList.add('show');
+  }
+}
+
+async function confirmDeleteKofun() {
+  const id = editingKofunId || activeId;
+  if (!id) return;
+  const k = allKofun.find(x => x.id === id);
+  if (!k) return;
+  if (!confirm(`「${k.name}」を削除しますか？この操作は取り消せません。`)) return;
+
+  try {
+    const res = await fetch(`/api/kofun/${id}`, { method: 'DELETE' });
+    if (res.status === 401) {
+      alert('セッションが切れました。再度ログインしてください。');
+      isAdmin = false; renderAdminArea(); return;
+    }
+    if (!res.ok) {
+      const data = await res.json();
+      alert(data.error || '削除に失敗しました');
+      return;
+    }
+
+    allKofun = allKofun.filter(x => x.id !== id);
+    closeEditModal();
+    closeDetail();
+
+    document.getElementById('stat-total').textContent = `全 ${allKofun.length} 件`;
+    document.getElementById('stat-wh').textContent = `🏛 世界遺産 ${allKofun.filter(k => k.world_heritage).length} 件`;
+
+    applyFilters();
+  } catch (e) {
+    alert('通信エラーが発生しました');
+  }
+}
+
+// ── DIRECTION PICKER ───────────────────────────────────────
+let directionPickerAngle = 0;   // 北=0度の方位角（k.directionと同じ意味）
+let isDraggingDirection = false;
+let directionPickerMode = 'edit'; // 'add' または 'edit'
+let directionMiniMap = null;
+let directionMiniMarker = null;
+
+function openDirectionPicker(mode) {
+  directionPickerMode = mode || 'edit';
+
+  const prefix = directionPickerMode; // 'add' or 'edit'
+  const directionInput = document.getElementById(prefix + '-direction');
+  const typeSelect = document.getElementById(prefix + '-type');
+
+  const currentVal = parseInt(directionInput.value) || 0;
+  directionPickerAngle = currentVal;
+  updateDirectionPickerUI();
+
+  // 古墳の形式に応じてSVGを描画（地図上のマーカーと同じ向き：左に前方部、右に後円部）
+  const type = typeSelect.value;
+  const svg = document.getElementById('direction-shape-svg');
+  if (type.includes('前方後円') || type.includes('帆立貝')) {
+    svg.innerHTML = `
+      <polygon points="6,34 6,62 65,48" fill="var(--rust)" stroke="white" stroke-width="2"/>
+      <circle cx="78" cy="48" r="18" fill="var(--rust)" stroke="white" stroke-width="2"/>
+    `;
+  } else if (type.includes('方墳')) {
+    svg.innerHTML = `<rect x="18" y="18" width="60" height="60" fill="var(--rust)" stroke="white" stroke-width="2"/>`;
+  } else {
+    svg.innerHTML = `<circle cx="48" cy="48" r="34" fill="var(--rust)" stroke="white" stroke-width="2"/>`;
+  }
+
+  // 中心となる座標を決定（追加モードはpendingLatLng、編集モードは編集中の古墳の座標）
+  let centerLat, centerLng;
+  if (directionPickerMode === 'add') {
+    if (!pendingLatLng) return;
+    centerLat = pendingLatLng.lat;
+    centerLng = pendingLatLng.lng;
+  } else {
+    const k = allKofun.find(x => x.id === editingKofunId);
+    if (!k) return;
+    centerLat = k.lat;
+    centerLng = k.lng;
+  }
+
+  document.getElementById('direction-modal-overlay').classList.add('open');
+
+  // ミニマップを初期化（実際の地形を投影）
+  setTimeout(() => {
+    initDirectionMiniMap(centerLat, centerLng);
+  }, 50);
+
+  initDirectionDrag();
+}
+
+function initDirectionMiniMap(lat, lng) {
+  const mapEl = document.getElementById('direction-map');
+  if (directionMiniMap) {
+    directionMiniMap.remove();
+    directionMiniMap = null;
+  }
+  mapEl.innerHTML = '';
+
+  directionMiniMap = L.map('direction-map', {
+    center: [lat, lng],
+    zoom: 16,
+    zoomControl: false,
+    attributionControl: false,
+    dragging: false,
+    scrollWheelZoom: false,
+    doubleClickZoom: false,
+    boxZoom: false,
+    keyboard: false,
+    touchZoom: false,
+    tap: false
+  });
+
+  L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/anaglyphmap_color/{z}/{x}/{y}.png', {
+    maxZoom: 18,
+    maxNativeZoom: 18
+  }).addTo(directionMiniMap);
+
+  // 中心マーカー（古墳の位置を示す小さな点）
+  directionMiniMarker = L.circleMarker([lat, lng], {
+    radius: 4,
+    color: 'white',
+    weight: 1.5,
+    fillColor: 'var(--gold)',
+    fillOpacity: 1
+  }).addTo(directionMiniMap);
+
+  setTimeout(() => directionMiniMap.invalidateSize(), 60);
+}
+
+function closeDirectionPicker() {
+  document.getElementById('direction-modal-overlay').classList.remove('open');
+  cleanupDirectionDrag();
+  if (directionMiniMap) {
+    directionMiniMap.remove();
+    directionMiniMap = null;
+  }
+}
+
+function applyDirectionPicker() {
+  const prefix = directionPickerMode;
+  document.getElementById(prefix + '-direction').value = Math.round(directionPickerAngle);
+  closeDirectionPicker();
+}
+
+function syncDirectionFromInput() {
+  // no-op, just keeps them in sync if needed
+}
+
+function updateDirectionPickerUI() {
+  const shape = document.getElementById('direction-kofun-shape');
+  // SVG図形は東西基準（左=前方部/西、右=後円部/東）で描かれているため、
+  // 地図マーカーの回転ロジック（k.direction + 90）と完全に一致させる
+  const visualRotation = directionPickerAngle + 90;
+  shape.style.transform = `translate(-50%, -50%) rotate(${visualRotation}deg)`;
+  document.getElementById('direction-degree-display').textContent = Math.round(((directionPickerAngle % 360) + 360) % 360);
+}
+
+function initDirectionDrag() {
+  const container = document.getElementById('direction-picker-container');
+  const shape = document.getElementById('direction-kofun-shape');
+
+  function getAngle(e) {
+    const rect = container.getBoundingClientRect();
+    const cx = rect.left + rect.width / 2;
+    const cy = rect.top + rect.height / 2;
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    const dx = clientX - cx;
+    const dy = clientY - cy;
+    // atan2は上が-π/2なので、北=0度になるよう調整
+    let angle = Math.atan2(dx, -dy) * 180 / Math.PI;
+    if (angle < 0) angle += 360;
+    return angle;
+  }
+
+  function onStart(e) {
+    isDraggingDirection = true;
+    shape.style.cursor = 'grabbing';
+    e.preventDefault();
+  }
+
+  function onMove(e) {
+    if (!isDraggingDirection) return;
+    directionPickerAngle = getAngle(e);
+    updateDirectionPickerUI();
+    e.preventDefault();
+  }
+
+  function onEnd() {
+    isDraggingDirection = false;
+    shape.style.cursor = 'grab';
+  }
+
+  shape._onStart = onStart;
+  shape._onMove = onMove;
+  shape._onEnd = onEnd;
+
+  shape.addEventListener('mousedown', onStart);
+  window.addEventListener('mousemove', onMove);
+  window.addEventListener('mouseup', onEnd);
+  shape.addEventListener('touchstart', onStart, { passive: false });
+  window.addEventListener('touchmove', onMove, { passive: false });
+  window.addEventListener('touchend', onEnd);
+}
+
+function cleanupDirectionDrag() {
+  const shape = document.getElementById('direction-kofun-shape');
+  if (!shape) return;
+  if (shape._onStart) shape.removeEventListener('mousedown', shape._onStart);
+  if (shape._onMove) window.removeEventListener('mousemove', shape._onMove);
+  if (shape._onEnd) window.removeEventListener('mouseup', shape._onEnd);
+  if (shape._onStart) shape.removeEventListener('touchstart', shape._onStart);
+  if (shape._onMove) window.removeEventListener('touchmove', shape._onMove);
+  if (shape._onEnd) window.removeEventListener('touchend', shape._onEnd);
+}
+
+
+init();
+checkAdminStatus();
+</script>
+</body>
+</html>

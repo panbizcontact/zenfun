@@ -1,0 +1,27 @@
+# Python仮想環境
+venv/
+.venv/
+env/
+
+# Pythonキャッシュ
+__pycache__/
+*.pyc
+*.pyo
+
+# 環境変数・秘密情報
+.env
+.env.local
+
+# データ保存時の一時ファイル(save_kofunが作る)
+*.tmp
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# ログ
+*.log
