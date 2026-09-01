@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}ログイン｜全墳 ZENFUN{% endblock %}
+{% block head %}
+<style>
+  body { display: grid; place-items: center; background:
+    radial-gradient(circle at 30% 20%, #3c3833, #23201c); }
+  .auth-card { width: 380px; max-width: calc(100vw - 32px);
+    background: var(--washi); border-radius: 6px; box-shadow: var(--shadow); overflow: hidden; }
+  .auth-head { padding: 24px 24px 16px; text-align: center;
+    background: linear-gradient(var(--washi), var(--washi-deep)); border-bottom: 1px solid var(--line); }
+  .auth-head .brand { justify-content: center; }
+  .auth-body { padding: 22px 24px 24px; }
+  .auth-body label { font-size: 12px; color: var(--sumi-soft); display: block; margin: 12px 0 4px; }
+  .auth-body input { width: 100%; padding: 9px 11px; border: 1px solid var(--line);
+    border-radius: 3px; font-size: 14px; font-family: var(--sans); }
+  .auth-btn { width: 100%; margin-top: 18px; padding: 11px; border: none; border-radius: 3px;
+    background: var(--shinsha); color: var(--washi); font-size: 15px; cursor: pointer;
+    letter-spacing: 0.1em; font-family: var(--sans); }
+  .auth-foot { text-align: center; margin-top: 14px; font-size: 13px; }
+  .auth-foot a { color: var(--shinsha); }
+</style>
+{% endblock %}
+{% block content %}
+<div class="auth-card">
+  <div class="auth-head">
+    <div class="brand">全墳<small>ZENFUN</small></div>
+  </div>
+  <div class="auth-body">
+    <form method="post">
+      <label for="identifier">ユーザー名 または メール</label>
+      <input id="identifier" name="identifier" required autofocus>
+      <label for="password">パスワード</label>
+      <input id="password" name="password" type="password" required>
+      <button class="auth-btn" type="submit">ログイン</button>
+    </form>
+    <div class="auth-foot">
+      アカウントをお持ちでない方は <a href="{{ url_for('auth.register') }}">会員登録</a><br>
+      <a href="{{ url_for('main.index') }}">← 地図に戻る</a>
+    </div>
+  </div>
+</div>
+{% endblock %}

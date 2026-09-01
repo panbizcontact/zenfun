@@ -1,0 +1,32 @@
+# Render Blueprint。Render ダッシュボードで
+# "New +" → "Blueprint" からこのリポジトリを選ぶと、Web サービスと
+# PostgreSQL データベースがまとめて作成される。
+# 参考: https://render.com/docs/blueprint-spec
+
+databases:
+  - name: zenfun-db
+    plan: free
+    databaseName: zenfun
+    user: zenfun
+
+services:
+  - type: web
+    name: zenfun
+    runtime: python
+    plan: free
+    region: singapore
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "gunicorn run:app --workers 2 --timeout 60"
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.11.9"
+      - key: SECRET_KEY
+        generateValue: true
+      - key: ALLOW_REGISTRATION
+        value: "true"
+      - key: RATELIMIT_STORAGE_URI
+        value: "memory://"
+      - key: DATABASE_URL
+        fromDatabase:
+          name: zenfun-db
+          property: connectionString

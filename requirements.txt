@@ -1,0 +1,17 @@
+Flask==3.0.3
+Flask-SQLAlchemy==3.1.1
+Flask-Login==0.6.3
+Flask-WTF==1.2.1
+Flask-Limiter==3.8.0
+Werkzeug==3.0.3
+SQLAlchemy==2.0.34
+email-validator==2.2.0
+python-dotenv==1.0.1
+requests==2.32.3
+beautifulsoup4==4.12.3
+
+# 本番用 WSGI サーバ（開発サーバは "do not use in production" と警告される）
+gunicorn==23.0.0
+
+# PostgreSQL/PostGIS 用（DATABASE_URL が postgres:// の場合に使用。本番(Render等)で必須）
+psycopg2-binary==2.9.9

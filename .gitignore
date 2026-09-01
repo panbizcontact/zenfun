@@ -1,0 +1,19 @@
+# Python
+__pycache__/
+*.pyc
+venv/
+.venv/
+
+# 環境変数（SECRET_KEY 等の秘密情報）
+.env
+
+# ローカル DB・アップロード
+data/*.db
+instance/
+
+# エディタ・OS
+.DS_Store
+.claude/
+
+# ログ
+*.log

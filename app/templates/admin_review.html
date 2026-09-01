@@ -1,0 +1,146 @@
+{% extends "base.html" %}
+{% block title %}承認レビュー ｜ 全墳 ZENFUN{% endblock %}
+
+{% block content %}
+<div class="review-page">
+  <header class="review-head">
+    <div class="brand"><a href="{{ url_for('main.index') }}" style="color:inherit;text-decoration:none;">全墳<small>ZENFUN</small></a></div>
+    <h1>承認レビュー</h1>
+    <div class="review-tabs">
+      <button class="rt active" data-status="pending">承認待ち</button>
+      <button class="rt" data-status="approved">承認済み</button>
+      <button class="rt" data-status="rejected">却下</button>
+      <button class="rt" data-status="all">すべて</button>
+    </div>
+  </header>
+  <div id="review-list" class="review-list"></div>
+</div>
+
+<template id="tpl-item">
+  <div class="review-item">
+    <div class="ri-head">
+      <span class="ri-action"></span>
+      <span class="ri-source"></span>
+      <span class="ri-name"></span>
+      <span class="ri-meta"></span>
+    </div>
+    <table class="ri-diff"></table>
+    <div class="ri-actions">
+      <button class="ri-approve primary">承認</button>
+      <button class="ri-reject">却下</button>
+    </div>
+    <div class="ri-note"></div>
+  </div>
+</template>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  "use strict";
+  const listEl = document.getElementById("review-list");
+  const tpl = document.getElementById("tpl-item");
+  let currentStatus = "pending";
+
+  const ACTION_JA = { create: "新規追加", update: "編集", delete: "削除" };
+
+  function escapeHtml(s) {
+    return String(s == null ? "" : s).replace(/[&<>"']/g, (c) =>
+      ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  }
+
+  function fmtDate(iso) {
+    if (!iso) return "";
+    const d = new Date(iso + "Z");
+    return d.toLocaleString("ja-JP");
+  }
+
+  function load(status) {
+    currentStatus = status;
+    document.querySelectorAll(".rt").forEach((b) => b.classList.toggle("active", b.dataset.status === status));
+    fetch("/api/admin/pending?status=" + status)
+      .then((r) => r.json())
+      .then(render)
+      .catch(() => { listEl.innerHTML = '<p class="ri-empty">読み込みに失敗しました。</p>'; });
+  }
+
+  function render(items) {
+    listEl.innerHTML = "";
+    if (!items.length) {
+      listEl.innerHTML = '<p class="ri-empty">該当する項目はありません。</p>';
+      return;
+    }
+    items.forEach((p) => listEl.appendChild(renderItem(p)));
+  }
+
+  function renderItem(p) {
+    const node = tpl.content.cloneNode(true);
+    const root = node.querySelector(".review-item");
+    root.querySelector(".ri-action").textContent = ACTION_JA[p.action] || p.action;
+    root.querySelector(".ri-action").classList.add("badge", "act-" + p.action);
+    root.querySelector(".ri-source").textContent =
+      p.data_source === "wikipedia" ? "Wikipedia bot" : "会員投稿";
+    root.querySelector(".ri-source").classList.add("badge");
+    root.querySelector(".ri-name").textContent =
+      (p.payload && p.payload.name) || p.kofun_name || "(名称未設定)";
+    root.querySelector(".ri-meta").textContent =
+      `#${p.id} ・ ${p.submitter_name} ・ ${fmtDate(p.created_at)}`;
+
+    const diff = root.querySelector(".ri-diff");
+    if (p.payload) {
+      const rows = Object.entries(p.payload)
+        .filter(([, v]) => v !== null && v !== "")
+        .map(([k, v]) => `<tr><th>${escapeHtml(k)}</th><td>${escapeHtml(v)}</td></tr>`)
+        .join("");
+      diff.innerHTML = rows || "<tr><td>(変更内容なし)</td></tr>";
+    } else {
+      diff.innerHTML = "";
+    }
+
+    const actions = root.querySelector(".ri-actions");
+    const noteEl = root.querySelector(".ri-note");
+    if (p.status !== "pending") {
+      actions.style.display = "none";
+      noteEl.textContent =
+        (p.status === "approved" ? "承認済み" : "却下") +
+        (p.reviewer_name ? ` ・ ${p.reviewer_name}` : "") +
+        (p.review_note ? ` ・ 理由: ${p.review_note}` : "") +
+        (p.reviewed_at ? ` ・ ${fmtDate(p.reviewed_at)}` : "");
+      if (p.status === "approved" && p.kofun_id) {
+        const link = document.createElement("a");
+        link.href = "/?flyto=" + p.kofun_id;
+        link.target = "_blank";
+        link.rel = "noopener";
+        link.textContent = "地図で見る";
+        link.style.marginLeft = "8px";
+        noteEl.appendChild(link);
+      }
+    } else {
+      root.querySelector(".ri-approve").addEventListener("click", () => act(p.id, "approve"));
+      root.querySelector(".ri-reject").addEventListener("click", () => {
+        const reason = prompt("却下理由（任意）");
+        if (reason === null) return;
+        act(p.id, "reject", reason);
+      });
+    }
+    return node;
+  }
+
+  function act(id, kind, reason) {
+    fetch(`/api/admin/pending/${id}/${kind}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ reason: reason || "" }),
+    })
+      .then((r) => r.json().then((d) => ({ ok: r.ok, d })))
+      .then(({ ok, d }) => {
+        if (!ok) { alert(d.error || "処理に失敗しました。"); return; }
+        load(currentStatus);
+      });
+  }
+
+  document.querySelectorAll(".rt").forEach((b) => b.addEventListener("click", () => load(b.dataset.status)));
+  load("pending");
+})();
+</script>
+{% endblock %}

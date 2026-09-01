@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}会員登録｜全墳 ZENFUN{% endblock %}
+{% block head %}
+<style>
+  body { display: grid; place-items: center; background:
+    radial-gradient(circle at 30% 20%, #3c3833, #23201c); }
+  .auth-card { width: 380px; max-width: calc(100vw - 32px);
+    background: var(--washi); border-radius: 6px; box-shadow: var(--shadow); overflow: hidden; }
+  .auth-head { padding: 24px 24px 16px; text-align: center;
+    background: linear-gradient(var(--washi), var(--washi-deep)); border-bottom: 1px solid var(--line); }
+  .auth-head .brand { justify-content: center; }
+  .auth-head p { font-size: 12px; color: var(--sumi-soft); margin: 8px 0 0; }
+  .auth-body { padding: 22px 24px 24px; }
+  .auth-body label { font-size: 12px; color: var(--sumi-soft); display: block; margin: 12px 0 4px; }
+  .auth-body input { width: 100%; padding: 9px 11px; border: 1px solid var(--line);
+    border-radius: 3px; font-size: 14px; font-family: var(--sans); }
+  .auth-body .hint { font-size: 11px; color: var(--sumi-soft); margin-top: 3px; }
+  .auth-btn { width: 100%; margin-top: 18px; padding: 11px; border: none; border-radius: 3px;
+    background: var(--shinsha); color: var(--washi); font-size: 15px; cursor: pointer;
+    letter-spacing: 0.1em; font-family: var(--sans); }
+  .auth-foot { text-align: center; margin-top: 14px; font-size: 13px; }
+  .auth-foot a { color: var(--shinsha); }
+</style>
+{% endblock %}
+{% block content %}
+<div class="auth-card">
+  <div class="auth-head">
+    <div class="brand">全墳<small>ZENFUN</small></div>
+    <p>登録すると、古墳の追加・編集に参加できます。</p>
+  </div>
+  <div class="auth-body">
+    <form method="post">
+      <label for="username">ユーザー名</label>
+      <input id="username" name="username" value="{{ username or '' }}" required autofocus>
+      <div class="hint">3文字以上。編集履歴に表示されます。</div>
+      <label for="email">メールアドレス</label>
+      <input id="email" name="email" type="email" value="{{ email or '' }}" required>
+      <label for="password">パスワード</label>
+      <input id="password" name="password" type="password" required>
+      <div class="hint">8文字以上。</div>
+      <button class="auth-btn" type="submit">登録する</button>
+    </form>
+    <div class="auth-foot">
+      すでにアカウントをお持ちの方は <a href="{{ url_for('auth.login') }}">ログイン</a><br>
+      <a href="{{ url_for('main.index') }}">← 地図に戻る</a>
+    </div>
+  </div>
+</div>
+{% endblock %}
