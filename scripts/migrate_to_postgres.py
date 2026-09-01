@@ -17,6 +17,7 @@ SQLITE_URL = "sqlite:///" + os.path.join(BASE_DIR, "data", "zenfun.db")
 
 # 依存順（外部キーの参照先が先）
 from app.models import User, Kofun, EditHistory, PendingChange  # noqa: E402
+from app.config import _normalize_database_url  # noqa: E402
 
 MODELS = (User, Kofun, EditHistory, PendingChange)
 
@@ -27,6 +28,7 @@ def main():
         print("環境変数 DATABASE_URL に PostgreSQL の接続文字列を設定してください。")
         print('例: DATABASE_URL=postgresql://user:pass@localhost/zenfun python -m scripts.migrate_to_postgres')
         sys.exit(1)
+    pg_url = _normalize_database_url(pg_url)  # postgres:// → postgresql:// (Render/Heroku対策)
 
     src_session = sessionmaker(bind=create_engine(SQLITE_URL))()
     dst_session = sessionmaker(bind=create_engine(pg_url))()

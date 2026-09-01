@@ -7,14 +7,22 @@ load_dotenv()
 BASE_DIR = os.path.abspath(os.path.dirname(os.path.dirname(__file__)))
 
 
+def _normalize_database_url(url: str) -> str:
+    """Render/Heroku 等が発行する "postgres://" は SQLAlchemy 1.4+/2.0 では
+    未対応(NoSuchModuleError, sqlalche.me/e/20/e3q8)。"postgresql://" に書き換える。"""
+    if url.startswith("postgres://"):
+        return "postgresql://" + url[len("postgres://"):]
+    return url
+
+
 class Config:
     SECRET_KEY = os.environ.get("SECRET_KEY", "dev-insecure-change-me")
 
     # 既定は data/zenfun.db の SQLite。DATABASE_URL で上書き可能。
-    SQLALCHEMY_DATABASE_URI = os.environ.get(
+    SQLALCHEMY_DATABASE_URI = _normalize_database_url(os.environ.get(
         "DATABASE_URL",
         "sqlite:///" + os.path.join(BASE_DIR, "data", "zenfun.db"),
-    )
+    ))
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
     ALLOW_REGISTRATION = os.environ.get("ALLOW_REGISTRATION", "true").lower() == "true"
