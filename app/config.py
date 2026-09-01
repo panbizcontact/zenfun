@@ -24,6 +24,14 @@ class Config:
         "sqlite:///" + os.path.join(BASE_DIR, "data", "zenfun.db"),
     ))
     SQLALCHEMY_TRACK_MODIFICATIONS = False
+    # 管理された PostgreSQL (Render等) はアイドル接続を無断で切断することがあり、
+    # プールが古い接続を使い回すと "SSL error" / "server closed the connection"
+    # で失敗する。pool_pre_ping で使用前に生死確認し、pool_recycle で先回りして
+    # 定期的に接続を張り直す。
+    SQLALCHEMY_ENGINE_OPTIONS = {
+        "pool_pre_ping": True,
+        "pool_recycle": 280,
+    }
 
     ALLOW_REGISTRATION = os.environ.get("ALLOW_REGISTRATION", "true").lower() == "true"
 
