@@ -6,6 +6,7 @@
 databases:
   - name: zenfun-db
     plan: free
+    region: singapore
     databaseName: zenfun
     user: zenfun
 
