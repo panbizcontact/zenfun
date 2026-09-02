@@ -14,7 +14,7 @@
 import os
 import sys
 
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 
 BASE_DIR = os.path.abspath(os.path.dirname(os.path.dirname(__file__)))
@@ -44,6 +44,13 @@ def main():
     src_session = sessionmaker(bind=create_engine(SQLITE_URL))()
     dst_session = sessionmaker(bind=create_engine(pg_url))()
 
+    # users をスキップするのは「移行先に既にアカウントがある」前提。移行先が空の状態で
+    # スキップすると、古墳の created_by 等が参照先を失い分かりにくい外部キーエラーになる。
+    if not include_users and dst_session.query(User).count() == 0:
+        print("エラー: 移行先にユーザーが1人もいないため、このまま移行すると外部キー制約で失敗します。")
+        print("  → 先に移行先サイトで会員登録するか、--include-users を付けて実行してください。")
+        sys.exit(1)
+
     for Model in models:
         rows = src_session.query(Model).all()
         print(f"{Model.__tablename__}: {len(rows)} 件を移行します…")
@@ -52,7 +59,29 @@ def main():
             dst_session.merge(Model(**data))
         dst_session.commit()
 
+    _reset_sequences(dst_session, MODELS)
     print("移行が完了しました。次に `python -m scripts.setup_postgis` を実行してください。")
+
+
+def _reset_sequences(session, models):
+    """ID を明示指定して挿入したため、PostgreSQL の自動採番シーケンスは 1 のまま。
+    そのままだと新規追加時に既存 ID と衝突して IntegrityError になるので、
+    各テーブルの MAX(id) までシーケンスを進めておく。"""
+    print("ID シーケンスを再設定します…")
+    for Model in models:
+        table = Model.__tablename__
+        seq = session.execute(
+            text("SELECT pg_get_serial_sequence(:t, 'id')"), {"t": table}
+        ).scalar()
+        if not seq:
+            continue
+        max_id = session.execute(text(f"SELECT COALESCE(MAX(id), 0) FROM {table}")).scalar()
+        if max_id:
+            session.execute(text("SELECT setval(:s, :v, true)"), {"s": seq, "v": max_id})
+        else:
+            session.execute(text("SELECT setval(:s, 1, false)"), {"s": seq})
+        print(f"  {table}: 次の ID = {max_id + 1}")
+    session.commit()
 
 
 if __name__ == "__main__":
