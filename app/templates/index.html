@@ -19,173 +19,188 @@
 <!-- ── 検索・絞り込みパネル（左上） ── -->
 <aside id="search-panel">
   <div class="panel-header">
-    <div class="brand">全墳<small>ZENFUN</small><span class="seal">墳</span></div>
+    <div class="brand"><span class="brand-mark">全墳</span><small>ZENFUN</small></div>
+    <p class="brand-sub">全国古墳総覧</p>
   </div>
+
   <div class="panel-body">
-    <div class="search-box">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/>
-      </svg>
-      <input id="q" type="text" placeholder="古墳名・市区町村で検索" autocomplete="off">
+    <div class="search-wrap">
+      <div class="search-box">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/>
+        </svg>
+        <input id="q" type="text" placeholder="古墳名で検索" autocomplete="off"
+               role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="suggest-list">
+      </div>
+      <ul id="suggest-list" role="listbox" aria-label="検索候補"></ul>
     </div>
 
-    <div class="filters">
-      <div>
-        <label for="f-pref">都道府県</label>
-        <select id="f-pref">
-          <option value="">すべて</option>
-          {% for p in prefectures %}<option value="{{ p }}">{{ p }}</option>{% endfor %}
-        </select>
-      </div>
-      <div>
-        <label for="f-shape">形状</label>
-        <select id="f-shape">
-          <option value="">すべて</option>
-          {% for key, name in shapes.items() %}<option value="{{ key }}">{{ name }}</option>{% endfor %}
-        </select>
-      </div>
-      <div>
-        <label for="f-period">年代</label>
-        <input id="f-period" type="text" placeholder="例: 中期 / 5世紀">
-      </div>
-      <div>
-        <label>墳丘長 (m)</label>
-        <div class="length-range">
-          <input id="f-minlen" type="number" min="0" placeholder="下限">
-          <span>〜</span>
-          <input id="f-maxlen" type="number" min="0" placeholder="上限">
+    <details class="filters-details">
+      <summary>絞り込み</summary>
+      <div class="filters">
+        <div>
+          <label for="f-pref">都道府県</label>
+          <select id="f-pref">
+            <option value="">すべて</option>
+            {% for p in prefectures %}<option value="{{ p }}">{{ p }}</option>{% endfor %}
+          </select>
+        </div>
+        <div>
+          <label for="f-shape">形状</label>
+          <select id="f-shape">
+            <option value="">すべて</option>
+            {% for key, name in shapes.items() %}<option value="{{ key }}">{{ name }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="full">
+          <label>墳丘長 (m)</label>
+          <div class="length-range">
+            <input id="f-minlen" type="number" min="0" placeholder="下限">
+            <span>〜</span>
+            <input id="f-maxlen" type="number" min="0" placeholder="上限">
+          </div>
         </div>
       </div>
-    </div>
+    </details>
 
     <div class="result-meta">
-      <span>該当 <strong id="result-count">—</strong></span>
-      <span>クリックで詳細</span>
+      <span>この範囲に <strong id="result-count">—</strong></span>
     </div>
-    <ul id="result-list"></ul>
   </div>
 
   <div class="account-bar">
     {% if current_user.is_authenticated %}
-      <span>{{ current_user.username }} さん</span>
+      <span class="account-name">{{ current_user.username }}</span>
       {% if current_user.is_admin %}<a href="{{ url_for('admin.review_page') }}">レビュー</a>{% endif %}
       <a href="{{ url_for('auth.logout') }}">ログアウト</a>
-      <button id="btn-add" class="btn-add">＋ 古墳を追加</button>
+      <button id="btn-add" class="btn-add">古墳を追加</button>
     {% else %}
       <a href="{{ url_for('auth.login') }}">ログイン</a>
       <a href="{{ url_for('auth.register') }}">会員登録</a>
-      <button id="btn-add" class="btn-add">＋ 追加（要ログイン）</button>
+      <button id="btn-add" class="btn-add">古墳を追加</button>
     {% endif %}
   </div>
 </aside>
 
-<!-- ── 詳細パネル（右） ── -->
-<aside id="detail-panel">
-  <div class="detail-head">
-    <div id="d-mark" class="d-mark"></div>
-    <div>
-      <h2 id="d-name" class="detail-title"></h2>
-      <div id="d-kana" class="detail-kana"></div>
-    </div>
-    <button id="d-close" class="detail-close" aria-label="閉じる">×</button>
-  </div>
-  <div class="detail-body">
-    <div id="d-badges" class="detail-badges"></div>
-    <table class="detail-table"><tbody id="d-table"></tbody></table>
-    <p id="d-desc" class="detail-desc"></p>
-    <div class="detail-actions">
-      <a id="d-source" href="#" target="_blank" rel="noopener">出典を見る</a>
-      <button id="d-edit" class="primary">編集</button>
-      <button id="d-delete">削除</button>
-    </div>
-    <div class="detail-history">
-      <button id="d-history-toggle" class="link-btn">編集履歴を見る</button>
-      <ul id="d-history-list" style="display:none;"></ul>
-    </div>
-  </div>
-</aside>
+<!-- ── 詳細（画面中央・論文体裁） ── -->
+<div id="detail-overlay">
+  <article class="paper" id="detail-paper">
+    <button id="d-close" class="paper-close" aria-label="閉じる">×</button>
 
-<!-- ── 凡例 ── -->
-<div id="legend">
-  <h4>形状の凡例</h4>
-  <div id="legend-rows"></div>
+    <header class="paper-head">
+      <p class="paper-eyebrow" id="d-eyebrow"></p>
+      <h1 class="paper-title" id="d-name"></h1>
+      <p class="paper-kana" id="d-kana"></p>
+      <p class="paper-byline" id="d-byline"></p>
+    </header>
+
+    <section class="paper-section">
+      <h2 class="paper-h2">諸元</h2>
+      <table class="paper-table"><tbody id="d-table"></tbody></table>
+    </section>
+
+    <section class="paper-section" id="d-desc-section">
+      <h2 class="paper-h2">概要</h2>
+      <p class="paper-body" id="d-desc"></p>
+    </section>
+
+    <section class="paper-section" id="d-source-section">
+      <h2 class="paper-h2">出典</h2>
+      <p class="paper-cite"><a id="d-source" href="#" target="_blank" rel="noopener"></a></p>
+    </section>
+
+    <section class="paper-section">
+      <h2 class="paper-h2">改訂履歴</h2>
+      <button id="d-history-toggle" class="link-btn">履歴を表示する</button>
+      <ul id="d-history-list" style="display:none;"></ul>
+    </section>
+
+    <footer class="paper-actions">
+      <button id="d-edit" class="btn-primary">編集する</button>
+      <button id="d-delete" class="btn-quiet">削除を申請</button>
+    </footer>
+  </article>
 </div>
 
-<!-- ── 追加・編集モーダル ── -->
+<!-- ── 追加・編集（画面中央・論文体裁の記入用紙） ── -->
 <div id="modal-overlay">
-  <div class="modal">
-    <h2 id="modal-title">古墳を追加</h2>
-    <form id="kofun-form" data-id="">
-      <div class="form-grid">
+  <form class="paper paper-form" id="kofun-form" data-id="">
+    <header class="paper-head">
+      <p class="paper-eyebrow">全墳 ZENFUN 登録原簿</p>
+      <h1 class="paper-title" id="modal-title">古墳を追加</h1>
+      <p class="paper-byline">記入後、管理者の査読を経て収録されます。</p>
+    </header>
+
+    <section class="paper-section">
+      <h2 class="paper-h2"><span class="sec-no">一</span>名称</h2>
+      <div class="field-grid">
         <div class="full">
-          <label for="m-name">名称 *</label><input id="m-name" required>
+          <label for="m-name">名称 <em>必須</em></label>
+          <input id="m-name" required placeholder="例: 大仙陵古墳">
         </div>
-        <div><label for="m-kana">ふりがな</label><input id="m-kana"></div>
-        <div><label for="m-designation">指定</label><input id="m-designation" placeholder="国史跡 など"></div>
-        <div><label for="m-lat">緯度 *</label><input id="m-lat" type="number" step="any" required></div>
-        <div><label for="m-lng">経度 *</label><input id="m-lng" type="number" step="any" required></div>
-        <div><label for="m-pref">都道府県</label><input id="m-pref"></div>
-        <div><label for="m-muni">市区町村</label><input id="m-muni"></div>
+        <div class="full">
+          <label for="m-kana">ふりがな</label>
+          <input id="m-kana" placeholder="例: だいせんりょうこふん">
+        </div>
+      </div>
+    </section>
+
+    <section class="paper-section">
+      <h2 class="paper-h2"><span class="sec-no">二</span>所在</h2>
+      <div class="field-grid">
+        <div><label for="m-lat">緯度 <em>必須</em></label><input id="m-lat" type="number" step="any" required></div>
+        <div><label for="m-lng">経度 <em>必須</em></label><input id="m-lng" type="number" step="any" required></div>
+        <div class="full">
+          <label>行政区画<span class="field-note">緯度経度から自動判定されます</span></label>
+          <p class="auto-address" id="m-address">—</p>
+          <input id="m-pref" type="hidden"><input id="m-muni" type="hidden">
+        </div>
+      </div>
+    </section>
+
+    <section class="paper-section">
+      <h2 class="paper-h2"><span class="sec-no">三</span>規模・形状</h2>
+      <div class="field-grid">
         <div>
           <label for="m-shape">形状</label>
           <select id="m-shape">
             {% for key, name in shapes.items() %}<option value="{{ key }}">{{ name }}</option>{% endfor %}
           </select>
         </div>
+        <div><label for="m-designation">指定</label><input id="m-designation" placeholder="国史跡 など"></div>
         <div><label for="m-length">墳丘長 (m)</label><input id="m-length" type="number" step="any"></div>
         <div><label for="m-height">墳丘高 (m)</label><input id="m-height" type="number" step="any"></div>
-        <div id="orient-field">
-          <label for="m-orient">主軸方位（前方部の向き）</label>
-          <div class="orient-wrap">
-            <svg class="orient-dial" viewBox="0 0 64 64">
-              <circle cx="32" cy="32" r="30" fill="#fff" stroke="#cbbfa6"/>
-              <text x="32" y="10" text-anchor="middle" font-size="8" fill="#7a736a">北</text>
-              <g id="orient-needle" transform="rotate(0 32 32)">
-                <polygon points="32,8 28,34 36,34" fill="#9e3b2e"/>
-                <polygon points="32,56 28,34 36,34" fill="#3c3833"/>
-              </g>
-            </svg>
-            <div>
-              <input id="m-orient" type="range" min="0" max="359" value="0">
-              <div id="orient-label" style="font-size:12px;color:#7a736a;">0° 北</div>
-              <button type="button" id="orient-map-btn" class="link-btn">地図上で回転して設定 ↗</button>
-            </div>
-          </div>
-        </div>
-        <div class="full" id="outline-field">
-          <label>輪郭（墳丘・周堤のかたち）</label>
-          <div id="outline-status">未設定</div>
-          <button type="button" id="outline-map-btn" class="link-btn">地図で輪郭を描く ↗</button>
-          <button type="button" id="outline-clear-btn" class="link-btn" style="display:none;">輪郭をクリア</button>
-        </div>
-        <div><label for="m-period">年代（語）</label><input id="m-period" placeholder="前期/中期/後期"></div>
-        <div>
-          <label>推定築造年（西暦・前は負数）</label>
-          <div class="length-range">
-            <input id="m-yfrom" type="number" placeholder="開始">
-            <span>〜</span>
-            <input id="m-yto" type="number" placeholder="終了">
-          </div>
-        </div>
-        <div class="full"><label for="m-source">出典URL</label><input id="m-source" type="url"></div>
-        <div class="full"><label for="m-desc">解説</label><textarea id="m-desc"></textarea></div>
       </div>
-      <div class="modal-actions">
-        <button type="button" id="m-cancel">キャンセル</button>
-        <button type="submit" class="primary">保存</button>
+    </section>
+
+    <section class="paper-section" id="outline-field">
+      <h2 class="paper-h2"><span class="sec-no">四</span>輪郭</h2>
+      <p class="field-note block">墳丘・周堤の形を地図上でなぞって記録します。</p>
+      <p class="auto-address" id="outline-status">未設定</p>
+      <div class="inline-actions">
+        <button type="button" id="outline-map-btn" class="link-btn">地図で輪郭を描く</button>
+        <button type="button" id="outline-clear-btn" class="link-btn" style="display:none;">輪郭をクリア</button>
       </div>
-    </form>
-  </div>
+    </section>
+
+    <section class="paper-section">
+      <h2 class="paper-h2"><span class="sec-no">五</span>記述</h2>
+      <div class="field-grid">
+        <div class="full">
+          <label for="m-desc">概要</label>
+          <textarea id="m-desc" placeholder="立地、構造、出土品、調査経過など"></textarea>
+        </div>
+      </div>
+    </section>
+
+    <footer class="paper-actions">
+      <button type="button" id="m-cancel" class="btn-quiet">取消</button>
+      <button type="submit" class="btn-primary">保存する</button>
+    </footer>
+  </form>
 </div>
 
-<!-- ── 地図上で方位を回転設定するときの案内ツールバー（モーダルを一時的に隠して操作） ── -->
-<div id="orient-map-toolbar">
-  <span>地図上のマーカーをドラッグして回転させ、方位を設定してください</span>
-  <strong id="orient-map-readout">0° 北</strong>
-  <button type="button" id="orient-map-done" class="primary">完了</button>
-</div>
-
-<!-- ── 地図上で輪郭を描くときの案内ツールバー（モーダルを一時的に隠して操作） ── -->
+<!-- ── 地図上で輪郭を描くときの案内ツールバー（記入用紙を一時的に隠して操作） ── -->
 <div id="outline-map-toolbar">
   <span>地図をクリックして頂点を追加してください</span>
   <div id="outline-targets"></div>
@@ -205,20 +220,5 @@
     shapes: {{ shapes | tojson }},
   };
 </script>
-<script src="{{ url_for('static', filename='js/markers.js') }}"></script>
 <script src="{{ url_for('static', filename='js/map.js') }}"></script>
-<script>
-  // 凡例を描画
-  (function () {
-    const rows = document.getElementById("legend-rows");
-    const shapes = window.ZENFUN_CONFIG.shapes;
-    Object.entries(shapes).forEach(([key, name]) => {
-      if (key === "unknown") return;
-      const div = document.createElement("div");
-      div.className = "lg-row";
-      div.innerHTML = window.KofunMarkers.kofunMarkerSVG(key, 22, 0) + "<span>" + name + "</span>";
-      rows.appendChild(div);
-    });
-  })();
-</script>
 {% endblock %}

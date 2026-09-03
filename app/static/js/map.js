@@ -56,7 +56,6 @@
       q: document.getElementById("q").value.trim(),
       prefecture: document.getElementById("f-pref").value,
       shape: document.getElementById("f-shape").value,
-      period: document.getElementById("f-period").value.trim(),
       min_length: document.getElementById("f-minlen").value.trim(),
       max_length: document.getElementById("f-maxlen").value.trim(),
     };
@@ -156,75 +155,73 @@
     };
   }
 
-  // ── リスト描画（左パネル） ──
+  // ── 件数表示（左パネル） ──
   function renderList(items, count) {
-    const ul = document.getElementById("result-list");
-    ul.innerHTML = "";
     document.getElementById("result-count").textContent = count + " 基";
-    items.slice(0, 300).forEach((k) => {
-      const li = document.createElement("li");
-      const sub = [k.prefecture, k.shape_ja, k.length_m ? k.length_m + "m" : ""]
-        .filter(Boolean).join(" ・ ");
-      li.innerHTML =
-        `<span class="rl-mark">${window.KofunMarkers.kofunMarkerSVG(k.shape, 26, k.orientation_deg)}</span>` +
-        `<span><span class="rl-name">${escapeHtml(k.name)}</span><br>` +
-        `<span class="rl-sub">${escapeHtml(sub)}</span></span>`;
-      li.addEventListener("click", () => {
-        map.flyTo({ center: [k.lng, k.lat], zoom: Math.max(map.getZoom(), 13) });
-        openDetail(k.id);
-      });
-      ul.appendChild(li);
-    });
   }
 
-  // ── 詳細パネル ──
+  // ── 詳細（画面中央・論文体裁） ──
   function openDetail(id) {
     currentDetailId = id;
+    closeSuggest();
     document.getElementById("d-history-list").style.display = "none";
-    document.getElementById("d-history-toggle").textContent = "編集履歴を見る";
+    document.getElementById("d-history-toggle").textContent = "履歴を表示する";
     fetch("/api/kofun/" + id).then((r) => r.json()).then((k) => {
-      const color = window.KofunMarkers.SHAPE_COLORS[k.shape] || "#7a736a";
-      document.getElementById("d-mark").innerHTML =
-        window.KofunMarkers.kofunMarkerSVG(k.shape, 44, k.orientation_deg);
+      const place = [k.prefecture, k.municipality].filter(Boolean).join(" ");
+      document.getElementById("d-eyebrow").textContent = place || "所在地不明";
       document.getElementById("d-name").textContent = k.name;
       document.getElementById("d-kana").textContent = k.name_kana || "";
-
-      const badges = document.getElementById("d-badges");
-      badges.innerHTML =
-        `<span class="badge shape" style="background:${color}">${k.shape_ja}</span>` +
-        (k.designation ? `<span class="badge">${escapeHtml(k.designation)}</span>` : "") +
-        (k.data_source === "wikipedia" ? `<span class="badge">Wikipedia</span>` : "");
+      document.getElementById("d-byline").textContent =
+        [k.shape_ja, k.designation].filter(Boolean).join("　／　");
 
       const rows = [
-        ["所在地", [k.prefecture, k.municipality].filter(Boolean).join(" ")],
+        ["所在地", place || "—"],
+        ["形状", k.shape_ja || "—"],
         ["墳丘長", k.length_m ? k.length_m + " m" : "—"],
         ["墳丘高", k.height_m ? k.height_m + " m" : "—"],
-        ["主軸方位", window.KofunMarkers.hasOrientation(k.shape)
-          ? Math.round(k.orientation_deg) + "°（" + degToJa(k.orientation_deg) + "）" : "—"],
         ["築造年代", periodText(k)],
+        ["指定", k.designation || "—"],
         ["座標", k.lat.toFixed(5) + ", " + k.lng.toFixed(5)],
       ];
       document.getElementById("d-table").innerHTML = rows
         .map(([t, v]) => `<tr><th>${t}</th><td>${escapeHtml(String(v))}</td></tr>`).join("");
-      document.getElementById("d-desc").textContent = k.description || "";
 
+      const descSection = document.getElementById("d-desc-section");
+      document.getElementById("d-desc").textContent = k.description || "";
+      descSection.style.display = k.description ? "" : "none";
+
+      const srcSection = document.getElementById("d-source-section");
       const src = document.getElementById("d-source");
-      if (k.source_url) { src.href = k.source_url; src.style.display = ""; }
-      else { src.style.display = "none"; }
+      if (k.source_url) {
+        src.href = k.source_url;
+        src.textContent = k.source_url;
+        srcSection.style.display = "";
+      } else {
+        srcSection.style.display = "none";
+      }
 
       const editBtn = document.getElementById("d-edit");
       if (IS_AUTH) { editBtn.style.display = ""; editBtn.onclick = () => openEditor(k); }
       else { editBtn.style.display = "none"; }
 
       const deleteBtn = document.getElementById("d-delete");
-      if (IS_AUTH) { deleteBtn.style.display = ""; deleteBtn.onclick = () => requestDelete(k); }
-      else { deleteBtn.style.display = "none"; }
+      if (IS_AUTH) {
+        deleteBtn.style.display = "";
+        deleteBtn.textContent = IS_ADMIN ? "削除する" : "削除を申請";
+        deleteBtn.onclick = () => requestDelete(k);
+      } else { deleteBtn.style.display = "none"; }
 
-      document.getElementById("detail-panel").classList.add("open");
+      document.getElementById("detail-overlay").classList.add("open");
     });
   }
-  document.getElementById("d-close").onclick = () =>
-    document.getElementById("detail-panel").classList.remove("open");
+
+  function closeDetail() {
+    document.getElementById("detail-overlay").classList.remove("open");
+  }
+  document.getElementById("d-close").onclick = closeDetail;
+  document.getElementById("detail-overlay").addEventListener("click", (e) => {
+    if (e.target.id === "detail-overlay") closeDetail();
+  });
 
   // ── 削除（管理者は即時削除、一般会員は承認申請） ──
   function requestDelete(k) {
@@ -236,19 +233,19 @@
       if (!ok) { flash(d.error || "処理に失敗しました。", "error"); return; }
       if (status === 202) { flash(d.message, "success"); return; }
       flash("削除しました。", "success");
-      document.getElementById("detail-panel").classList.remove("open");
+      closeDetail();
       fetchKofun();
     });
   }
 
-  // ── 編集履歴・差し戻し ──
+  // ── 改訂履歴・差し戻し ──
   document.getElementById("d-history-toggle").onclick = () => {
     const ul = document.getElementById("d-history-list");
     const opening = ul.style.display === "none";
     if (opening) loadHistory(currentDetailId);
     ul.style.display = opening ? "" : "none";
     document.getElementById("d-history-toggle").textContent =
-      opening ? "編集履歴を閉じる" : "編集履歴を見る";
+      opening ? "履歴を閉じる" : "履歴を表示する";
   };
 
   const ACTION_JA = { create: "追加", update: "編集", delete: "削除", revert: "差し戻し" };
@@ -296,10 +293,12 @@
     });
   }
 
-  // ── 追加・編集モーダル ──
+  // ── 追加・編集（記入用紙） ──
   function openEditor(k) {
     const isNew = !k;
-    k = k || { shape: "unknown", orientation_deg: 0 };
+    k = k || { shape: "unknown" };
+    closeDetail();
+    closeSuggest();
     document.getElementById("modal-title").textContent = isNew ? "古墳を追加" : "古墳を編集";
     const form = document.getElementById("kofun-form");
     form.reset();
@@ -308,17 +307,16 @@
     setVal("m-lat", k.lat); setVal("m-lng", k.lng);
     setVal("m-pref", k.prefecture); setVal("m-muni", k.municipality);
     setVal("m-shape", k.shape); setVal("m-length", k.length_m);
-    setVal("m-height", k.height_m); setVal("m-orient", k.orientation_deg || 0);
-    setVal("m-period", k.period); setVal("m-yfrom", k.year_from); setVal("m-yto", k.year_to);
-    setVal("m-designation", k.designation); setVal("m-source", k.source_url);
+    setVal("m-height", k.height_m);
+    setVal("m-designation", k.designation);
     setVal("m-desc", k.description);
     // 新規で座標未設定なら地図中心を初期値に
     if (isNew) {
       const c = map.getCenter();
       setVal("m-lat", c.lat.toFixed(6)); setVal("m-lng", c.lng.toFixed(6));
     }
-    updateOrientDial();
-    updateOrientMapBtn();
+    showAddress(k.prefecture, k.municipality);
+    refreshAddress();  // 緯度経度から最新の行政区画を引き直す
     outlineDraft = {
       mound: (k.outline && k.outline.mound) ? k.outline.mound.slice() : [],
       moats: (k.outline && k.outline.moats)
@@ -353,9 +351,7 @@
       latitude: val("m-lat"), longitude: val("m-lng"),
       prefecture: val("m-pref"), municipality: val("m-muni"),
       shape: val("m-shape"), length_m: val("m-length"), height_m: val("m-height"),
-      orientation_deg: val("m-orient"),
-      period: val("m-period"), year_from: val("m-yfrom"), year_to: val("m-yto"),
-      designation: val("m-designation"), source_url: val("m-source"),
+      designation: val("m-designation"),
       description: val("m-desc"),
       outline_geojson: Object.keys(outlineObj).length ? JSON.stringify(outlineObj) : "",
     };
@@ -380,7 +376,6 @@
 
   function closeModal() {
     document.getElementById("modal-overlay").classList.remove("open");
-    exitMapOrientMode();
     exitOutlineDrawMode();
   }
   document.getElementById("m-cancel").onclick = closeModal;
@@ -388,115 +383,50 @@
     if (e.target.id === "modal-overlay") closeModal();
   });
 
-  // 方角ダイヤル・地図上ハンドルの表示更新（どちらから操作しても同期する）
-  function updateOrientDial() {
-    const deg = parseFloat(val("m-orient")) || 0;
-    const label = Math.round(deg) + "° " + degToJa(deg);
-    document.getElementById("orient-needle").setAttribute("transform", `rotate(${deg} 32 32)`);
-    document.getElementById("orient-label").textContent = label;
-    document.getElementById("orient-map-readout").textContent = label;
-    if (orientMapMarker) orientMapMarker.setRotation(deg);
-  }
-  document.getElementById("m-orient").addEventListener("input", updateOrientDial);
+  // ── 行政区画の自動判定（緯度経度 → 都道府県・市区町村） ──
+  // 国土地理院の逆ジオコーダーをサーバ経由で呼ぶ。手入力はさせず、常に座標から導出する。
+  let addressSeq = 0;
 
-  function updateOrientMapBtn() {
-    const s = val("m-shape");
-    const wrap = document.getElementById("orient-field");
-    wrap.style.opacity = window.KofunMarkers.hasOrientation(s) ? "1" : "0.4";
-    document.getElementById("orient-map-btn").disabled = !window.KofunMarkers.hasOrientation(s);
-  }
-  document.getElementById("m-shape").addEventListener("change", updateOrientMapBtn);
-
-  // ── 地図上でドラッグして方位を回転設定 ──
-  // モーダルを一時的に隠し、地図全体を見ながら対象地点のハンドルをドラッグ操作する。
-  let orientMapMarker = null;
-  let orientDragging = false;
-
-  function orientHandleSVG() {
-    return `
-<svg width="46" height="46" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
-  <polygon points="32,4 25,30 39,30" fill="#9e3b2e" stroke="#23201c" stroke-width="2.5" stroke-linejoin="round"/>
-  <polygon points="32,60 25,34 39,34" fill="#3c3833" stroke="#23201c" stroke-width="2.5" stroke-linejoin="round"/>
-  <circle cx="32" cy="32" r="9" fill="#fff8ec" stroke="#23201c" stroke-width="2.5"/>
-</svg>`.trim();
+  function showAddress(pref, muni) {
+    const el = document.getElementById("m-address");
+    const text = [pref, muni].filter(Boolean).join(" ");
+    el.textContent = text || "—";
+    el.classList.toggle("pending", !text);
   }
 
-  function wireOrientDrag(el) {
-    function angleFromEvent(e) {
-      const point = e.touches ? e.touches[0] : e;
-      const rect = map.getCanvasContainer().getBoundingClientRect();
-      const mx = point.clientX - rect.left;
-      const my = point.clientY - rect.top;
-      const center = map.project(orientMapMarker.getLngLat());
-      const dx = mx - center.x;
-      const dy = my - center.y;
-      if (Math.hypot(dx, dy) < 4) return null; // 中心付近はノイズになるため無視
-      return (Math.atan2(dx, -dy) * 180) / Math.PI;
-    }
-    function onMove(e) {
-      if (!orientDragging) return;
-      const deg = angleFromEvent(e);
-      if (deg !== null) {
-        document.getElementById("m-orient").value = ((deg % 360) + 360) % 360;
-        updateOrientDial();
-      }
-      e.preventDefault();
-    }
-    function onUp() {
-      orientDragging = false;
-      el.classList.remove("dragging");
-      window.removeEventListener("mousemove", onMove);
-      window.removeEventListener("mouseup", onUp);
-      window.removeEventListener("touchmove", onMove);
-      window.removeEventListener("touchend", onUp);
-    }
-    function onDown(e) {
-      orientDragging = true;
-      el.classList.add("dragging");
-      window.addEventListener("mousemove", onMove);
-      window.addEventListener("mouseup", onUp);
-      window.addEventListener("touchmove", onMove, { passive: false });
-      window.addEventListener("touchend", onUp);
-      e.preventDefault();
-      e.stopPropagation(); // 地図自体のドラッグ(パン)を起こさない
-    }
-    el.addEventListener("mousedown", onDown);
-    el.addEventListener("touchstart", onDown, { passive: false });
-  }
-
-  function enterMapOrientMode() {
+  function refreshAddress() {
     const lat = parseFloat(val("m-lat"));
     const lng = parseFloat(val("m-lng"));
-    if (isNaN(lat) || isNaN(lng)) return;
-    document.getElementById("modal-overlay").classList.remove("open");
-    document.getElementById("orient-map-toolbar").classList.add("open");
-    // 検索・詳細パネルを一時的に隠し、地図全面を使えるようにする
-    document.body.classList.add("map-edit-mode");
-    map.panTo([lng, lat], { duration: 300 });
-
-    const el = document.createElement("div");
-    el.className = "orient-map-marker";
-    el.innerHTML = orientHandleSVG();
-    orientMapMarker = new maplibregl.Marker({
-      element: el, anchor: "center", rotationAlignment: "map", pitchAlignment: "map",
-    }).setLngLat([lng, lat]).addTo(map);
-    orientMapMarker.setRotation(parseFloat(val("m-orient")) || 0);
-    wireOrientDrag(el);
+    const el = document.getElementById("m-address");
+    if (isNaN(lat) || isNaN(lng)) {
+      setVal("m-pref", ""); setVal("m-muni", "");
+      showAddress("", "");
+      return;
+    }
+    const seq = ++addressSeq;
+    el.textContent = "判定中…";
+    el.classList.add("pending");
+    fetch(`/api/reverse-geocode?lat=${lat}&lng=${lng}`)
+      .then((r) => r.json())
+      .then((d) => {
+        if (seq !== addressSeq) return;  // 新しい問い合わせが始まっていれば破棄
+        setVal("m-pref", d.prefecture || "");
+        setVal("m-muni", d.municipality || "");
+        if (d.prefecture) showAddress(d.prefecture, d.municipality);
+        else {
+          el.textContent = "判定できませんでした（日本国外・海上の可能性）";
+          el.classList.add("pending");
+        }
+      })
+      .catch(() => {
+        if (seq !== addressSeq) return;
+        el.textContent = "判定できませんでした";
+        el.classList.add("pending");
+      });
   }
 
-  function exitMapOrientMode() {
-    document.getElementById("orient-map-toolbar").classList.remove("open");
-    document.body.classList.remove("map-edit-mode");
-    if (orientMapMarker) { orientMapMarker.remove(); orientMapMarker = null; }
-  }
-
-  document.getElementById("orient-map-btn").addEventListener("click", () => {
-    if (document.getElementById("orient-map-btn").disabled) return;
-    enterMapOrientMode();
-  });
-  document.getElementById("orient-map-done").addEventListener("click", () => {
-    exitMapOrientMode();
-    document.getElementById("modal-overlay").classList.add("open");
+  ["m-lat", "m-lng"].forEach((id) => {
+    document.getElementById(id).addEventListener("change", refreshAddress);
   });
 
   // ── 輪郭（墳丘・周堤）を地図上のクリックで描く ──
@@ -689,10 +619,87 @@
     : (location.href = "/auth/login");
 
   // ── フィルタ操作 ──
-  ["q", "f-pref", "f-shape", "f-period", "f-minlen", "f-maxlen"].forEach((id) => {
+  ["f-pref", "f-shape", "f-minlen", "f-maxlen"].forEach((id) => {
     const el = document.getElementById(id);
     el.addEventListener("input", scheduleFetch);
     el.addEventListener("change", scheduleFetch);
+  });
+
+  // ── 検索候補（文字のみのサジェスト） ──
+  const qInput = document.getElementById("q");
+  const suggestList = document.getElementById("suggest-list");
+  let suggestTimer = null;
+  let suggestItems = [];
+  let suggestIndex = -1;
+
+  function closeSuggest() {
+    suggestList.classList.remove("open");
+    suggestList.innerHTML = "";
+    suggestItems = [];
+    suggestIndex = -1;
+    qInput.setAttribute("aria-expanded", "false");
+  }
+
+  function renderSuggest(items) {
+    suggestItems = items;
+    suggestIndex = -1;
+    if (!items.length) {
+      suggestList.innerHTML = '<li class="empty">該当する古墳が見つかりません</li>';
+    } else {
+      suggestList.innerHTML = items
+        .map((k, i) => `<li role="option" data-i="${i}">${escapeHtml(k.name)}</li>`).join("");
+      suggestList.querySelectorAll("li[data-i]").forEach((li) => {
+        li.addEventListener("mousedown", (e) => {
+          e.preventDefault();  // input の blur より先に選択を確定させる
+          chooseSuggest(parseInt(li.dataset.i, 10));
+        });
+      });
+    }
+    suggestList.classList.add("open");
+    qInput.setAttribute("aria-expanded", "true");
+  }
+
+  function chooseSuggest(i) {
+    const k = suggestItems[i];
+    if (!k) return;
+    qInput.value = k.name;
+    closeSuggest();
+    map.flyTo({ center: [k.lng, k.lat], zoom: Math.max(map.getZoom(), 15) });
+    openDetail(k.id);
+  }
+
+  function highlightSuggest(next) {
+    const lis = suggestList.querySelectorAll("li[data-i]");
+    if (!lis.length) return;
+    suggestIndex = (next + lis.length) % lis.length;
+    lis.forEach((li, i) => li.classList.toggle("active", i === suggestIndex));
+  }
+
+  qInput.addEventListener("input", () => {
+    scheduleFetch();  // 地図側の絞り込みも従来どおり連動させる
+    const kw = qInput.value.trim();
+    clearTimeout(suggestTimer);
+    if (!kw) { closeSuggest(); return; }
+    suggestTimer = setTimeout(() => {
+      fetch("/api/kofun/suggest?q=" + encodeURIComponent(kw))
+        .then((r) => r.json())
+        .then(renderSuggest)
+        .catch(() => closeSuggest());
+    }, 180);
+  });
+
+  qInput.addEventListener("keydown", (e) => {
+    if (!suggestList.classList.contains("open")) return;
+    if (e.key === "ArrowDown") { e.preventDefault(); highlightSuggest(suggestIndex + 1); }
+    else if (e.key === "ArrowUp") { e.preventDefault(); highlightSuggest(suggestIndex - 1); }
+    else if (e.key === "Enter") {
+      if (suggestIndex >= 0) { e.preventDefault(); chooseSuggest(suggestIndex); }
+    } else if (e.key === "Escape") { closeSuggest(); }
+  });
+
+  qInput.addEventListener("blur", () => setTimeout(closeSuggest, 120));
+  qInput.addEventListener("focus", () => {
+    if (qInput.value.trim() && suggestItems.length) suggestList.classList.add("open");
   });
 
   // ── 地図イベント ──
@@ -838,10 +845,6 @@
   function escapeHtml(s) {
     return String(s || "").replace(/[&<>"']/g, (c) =>
       ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
-  }
-  function degToJa(deg) {
-    const dirs = ["北", "北東", "東", "南東", "南", "南西", "西", "北西"];
-    return dirs[Math.round(((deg % 360) + 360) % 360 / 45) % 8];
   }
   function periodText(k) {
     if (k.year_from || k.year_to) {

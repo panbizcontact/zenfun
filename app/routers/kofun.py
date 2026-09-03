@@ -181,6 +181,26 @@ def list_kofun():
     })
 
 
+@bp.route("/suggest", methods=["GET"])
+def suggest_kofun():
+    """検索バーの候補表示用。地図の表示範囲に関係なく全国から名称で前方・部分一致を返す。
+    候補は文字だけを出すので、必要最小限の項目のみ返す。"""
+    kw = (request.args.get("q") or "").strip()
+    if len(kw) < 1:
+        return jsonify([])
+    like = f"%{kw}%"
+    items = (Kofun.query.filter_by(is_deleted=False)
+             .filter(db.or_(Kofun.name.like(like),
+                            Kofun.name_kana.like(like),
+                            Kofun.aliases.like(like)))
+             # 前方一致を優先し、次に規模の大きいものから
+             .order_by(Kofun.name.like(f"{kw}%").desc(),
+                       Kofun.length_m.desc().nullslast())
+             .limit(10).all())
+    return jsonify([{"id": k.id, "name": k.name, "lat": k.latitude, "lng": k.longitude}
+                    for k in items])
+
+
 @bp.route("/<int:kofun_id>", methods=["GET"])
 def get_kofun(kofun_id):
     k = db.session.get(Kofun, kofun_id)

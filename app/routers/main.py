@@ -1,6 +1,7 @@
 """トップ（地図）ページと補助エンドポイント。"""
-from flask import Blueprint, render_template, jsonify
+from flask import Blueprint, render_template, jsonify, request
 
+from ..geocode import reverse_geocode
 from ..models import KOFUN_SHAPES
 
 bp = Blueprint("main", __name__)
@@ -31,3 +32,15 @@ def meta():
         "prefectures": PREFECTURES,
         "shapes": KOFUN_SHAPES,
     })
+
+
+@bp.route("/api/reverse-geocode")
+def reverse_geocode_api():
+    """緯度経度から都道府県・市区町村を返す（編集画面の自動入力用）。
+    解決できない場合も 200 で空の値を返し、入力を妨げない。"""
+    try:
+        lat = float(request.args["lat"])
+        lng = float(request.args["lng"])
+    except (KeyError, ValueError):
+        return jsonify({"error": "lat と lng が必要です。"}), 400
+    return jsonify(reverse_geocode(lat, lng))
