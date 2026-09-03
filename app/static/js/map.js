@@ -299,11 +299,14 @@
     k = k || { shape: "unknown" };
     closeDetail();
     closeSuggest();
-    document.getElementById("modal-title").textContent = isNew ? "古墳を追加" : "古墳を編集";
+    // 編集時は見出しを出さない（記入用紙そのものが編集画面のため）
+    const titleEl = document.getElementById("modal-title");
+    titleEl.textContent = isNew ? "古墳を追加" : "";
+    titleEl.hidden = !isNew;
     const form = document.getElementById("kofun-form");
     form.reset();
     form.dataset.id = isNew ? "" : k.id;
-    setVal("m-name", k.name); setVal("m-kana", k.name_kana);
+    setVal("m-name", k.name);
     setVal("m-lat", k.lat); setVal("m-lng", k.lng);
     setVal("m-pref", k.prefecture); setVal("m-muni", k.municipality);
     setVal("m-shape", isNew ? "" : k.shape); setVal("m-length", k.length_m);
@@ -356,7 +359,7 @@
     const validLines = outlineDraft.lines.filter((l) => l.length >= 2);
     if (validLines.length) outlineObj.lines = validLines;
     const payload = {
-      name: val("m-name"), name_kana: val("m-kana"),
+      name: val("m-name"),
       latitude: val("m-lat"), longitude: val("m-lng"),
       prefecture: val("m-pref"), municipality: val("m-muni"),
       shape: val("m-shape"), length_m: val("m-length"), height_m: val("m-height"),
