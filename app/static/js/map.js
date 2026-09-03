@@ -162,10 +162,8 @@
 
   // ── 詳細（画面中央・論文体裁） ──
   // 別の記入用紙は設けず、鉛筆アイコンでこの紙をそのまま編集に切り替える。
-  const HISTORY_LIMIT = 5;     // 改訂履歴の初期表示件数
   let currentKofun = null;     // 表示中の古墳（編集の下敷き。新規追加時は null）
   let historyItems = [];
-  let historyShown = 0;
 
   function openDetail(id) {
     currentDetailId = id;
@@ -208,7 +206,7 @@
       ["築造年代", periodText(k)],
       ["指定", k.designation || "—"],
       ["座標", k.lat.toFixed(5) + ", " + k.lng.toFixed(5)],
-      ["輪郭", outlineSummary(k.outline)],
+      ["Path", outlineSummary(k.outline)],
     ];
     document.getElementById("d-table").innerHTML = rows
       .map(([t, v]) => `<tr><th>${t}</th><td>${escapeHtml(String(v))}</td></tr>`).join("");
@@ -253,31 +251,23 @@
   }
 
   // ── 改訂履歴・差し戻し ──
-  // 一度に全件並べると紙が長くなるため、初めは新しい HISTORY_LIMIT 件だけ出す。
+  // 一度に全件並べると紙が長くなるため、履歴は枠の中でスクロールさせる。
   function resetHistoryView() {
     historyItems = [];
-    historyShown = 0;
-    const ul = document.getElementById("d-history-list");
-    ul.style.display = "none";
-    ul.innerHTML = "";
-    document.getElementById("d-history-more").style.display = "none";
+    const box = document.getElementById("d-history-scroll");
+    box.style.display = "none";
+    box.scrollTop = 0;
+    document.getElementById("d-history-list").innerHTML = "";
     document.getElementById("d-history-toggle").textContent = "履歴を表示する";
   }
 
   document.getElementById("d-history-toggle").onclick = () => {
-    const ul = document.getElementById("d-history-list");
-    const opening = ul.style.display === "none";
+    const box = document.getElementById("d-history-scroll");
+    const opening = box.style.display === "none";
     if (opening) loadHistory(currentDetailId);
-    ul.style.display = opening ? "" : "none";
-    document.getElementById("d-history-more").style.display =
-      opening && historyShown < historyItems.length ? "" : "none";
+    box.style.display = opening ? "" : "none";
     document.getElementById("d-history-toggle").textContent =
       opening ? "履歴を閉じる" : "履歴を表示する";
-  };
-
-  document.getElementById("d-history-more").onclick = () => {
-    historyShown = Math.min(historyShown + HISTORY_LIMIT, historyItems.length);
-    renderHistory();
   };
 
   const ACTION_JA = { create: "追加", update: "編集", delete: "削除", revert: "差し戻し" };
@@ -285,20 +275,17 @@
   function loadHistory(id) {
     fetch(`/api/kofun/${id}/history`).then((r) => r.json()).then((items) => {
       historyItems = items;
-      historyShown = Math.min(HISTORY_LIMIT, items.length);
       renderHistory();
     });
   }
 
   function renderHistory() {
     const ul = document.getElementById("d-history-list");
-    const more = document.getElementById("d-history-more");
     if (!historyItems.length) {
       ul.innerHTML = "<li>履歴はありません。</li>";
-      more.style.display = "none";
       return;
     }
-    ul.innerHTML = historyItems.slice(0, historyShown).map((h) => {
+    ul.innerHTML = historyItems.map((h) => {
       const canRevert = IS_ADMIN && h.has_snapshot;
       return `<li>${fmtDate(h.created_at)}・${ACTION_JA[h.action] || h.action}・${escapeHtml(h.username)}` +
         (canRevert ? `<button class="link-btn" data-hist="${h.id}">差し戻す</button>` : "") +
@@ -307,9 +294,6 @@
     ul.querySelectorAll("button[data-hist]").forEach((btn) => {
       btn.onclick = () => revertHistory(currentDetailId, btn.dataset.hist);
     });
-    const rest = historyItems.length - historyShown;
-    more.style.display = rest > 0 ? "" : "none";
-    more.textContent = `さらに ${Math.min(rest, HISTORY_LIMIT)} 件（残り ${rest} 件）`;
   }
 
   function revertHistory(kofunId, histId) {
@@ -366,7 +350,7 @@
     document.getElementById("e-height-note").textContent = "";
     document.getElementById("e-address").textContent =
       [k.prefecture, k.municipality].filter(Boolean).join(" ") || "—";
-    document.getElementById("e-period").textContent = periodText(k);
+    setVal("e-period", yearRangeText(k));
     updateCoordText();
     outlineDraft = {
       mound: (k.outline && k.outline.mound) ? k.outline.mound.slice() : [],
@@ -378,6 +362,34 @@
     outlineActiveTarget = "mound";
     updateOutlineStatus();
     updateByline();
+  }
+
+  // 築造年代の入力は「400〜500」「690」のように数字と〜だけを受け付ける
+  const periodInput = document.getElementById("e-period");
+  periodInput.addEventListener("input", () => {
+    const cleaned = periodInput.value.replace(/[~～]/g, "〜").replace(/[^0-9〜]/g, "");
+    if (cleaned !== periodInput.value) {
+      const at = periodInput.selectionStart - (periodInput.value.length - cleaned.length);
+      periodInput.value = cleaned;
+      periodInput.setSelectionRange(at, at);
+    }
+    document.getElementById("e-period-note").textContent =
+      parseYearRange(periodInput.value) ? "" : "数字と〜だけで入力してください";
+  });
+
+  function yearRangeText(k) {
+    if (k.year_from == null && k.year_to == null) return "";
+    return [k.year_from, k.year_to].filter((y) => y != null).join("〜");
+  }
+
+  // "400〜500" → {from:400, to:500} / "690" → {from:690, to:null} / 空 → 両方 null
+  // 解釈できない書き方のときは null を返す
+  function parseYearRange(text) {
+    const t = (text || "").trim();
+    if (!t) return { from: null, to: null };
+    const m = t.match(/^(\d+)(?:〜(\d+)?)?$/);
+    if (!m) return null;
+    return { from: parseInt(m[1], 10), to: m[2] ? parseInt(m[2], 10) : null };
   }
 
   function updateCoordText() {
@@ -438,6 +450,8 @@
     const name = (val("e-name") || "").trim();
     const shape = val("e-shape") || "";
     const designation = (val("e-designation") || "").trim();
+    const years = parseYearRange(val("e-period"));
+    if (!years) { flash("築造年代は「400〜500」のように数字と〜で入力してください。", "error"); return; }
     const missing = [];
     if (!name) missing.push("名称");
     if (!shape) missing.push("形状");
@@ -473,6 +487,7 @@
       latitude: val("e-lat"), longitude: val("e-lng"),
       prefecture: val("e-pref"), municipality: val("e-muni"),
       shape: shape, length_m: val("e-length"), height_m: val("e-height"),
+      year_from: years.from, year_to: years.to,
       designation: designation,
       description: val("e-desc"),
       outline_geojson: Object.keys(outlineObj).length ? JSON.stringify(outlineObj) : "",
@@ -526,15 +541,31 @@
     return 2 * R * Math.asin(Math.sqrt(h));
   }
 
+  // 墳丘長は、墳丘Pathが最も長く伸びる向き（主軸）に沿った差し渡しで測る。
+  // 頂点間の最長距離をとると、前方部の角どうしのような斜めの対角線を拾って
+  // 実際の墳丘長より長く出てしまうため、主軸に射影した範囲を長さとする。
   function ringMaxLength(ring) {
-    let max = 0;
-    for (let i = 0; i < ring.length; i++) {
-      for (let j = i + 1; j < ring.length; j++) {
-        const d = distanceMeters(ring[i], ring[j]);
-        if (d > max) max = d;
-      }
-    }
-    return max;
+    if (ring.length < 2) return 0;
+    // 緯度経度のままでは向きが歪むので、重心を原点とした平面(メートル)に直す
+    const latC = ring.reduce((s2, p) => s2 + p[1], 0) / ring.length;
+    const lngC = ring.reduce((s2, p) => s2 + p[0], 0) / ring.length;
+    const mPerLat = 111132.0;
+    const mPerLng = 111320.0 * Math.cos(latC * Math.PI / 180);
+    const pts = ring.map((p) => [(p[0] - lngC) * mPerLng, (p[1] - latC) * mPerLat]);
+
+    // 主軸 = 頂点のばらつきが最大になる向き（二次モーメントの主軸）
+    let sxx = 0, syy = 0, sxy = 0;
+    pts.forEach(([x, y]) => { sxx += x * x; syy += y * y; sxy += x * y; });
+    const theta = 0.5 * Math.atan2(2 * sxy, sxx - syy);
+    const ux = Math.cos(theta), uy = Math.sin(theta);
+
+    let min = Infinity, max = -Infinity;
+    pts.forEach(([x, y]) => {
+      const t = x * ux + y * uy;
+      if (t < min) min = t;
+      if (t > max) max = t;
+    });
+    return max - min;
   }
 
   // 墳丘のPathがあるときは墳丘長を自動計算し、手入力できないようにする
@@ -545,7 +576,7 @@
     if (mound.length >= 2) {
       input.value = ringMaxLength(mound).toFixed(1);
       input.readOnly = true;
-      note.textContent = "輪郭から自動計算";
+      note.textContent = "Pathの主軸から自動計算";
     } else {
       input.readOnly = false;
       note.textContent = "";
@@ -612,16 +643,10 @@
     if (validLines.length) parts.push(`線${validLines.length}本`);
     document.getElementById("e-outline-status").textContent =
       parts.length ? parts.join(" / ") : "未設定";
-    document.getElementById("e-outline-clear").style.display = parts.length ? "" : "none";
     document.getElementById("e-outline-btn").textContent =
-      parts.length ? "輪郭を編集する" : "輪郭を設定する";
+      parts.length ? "Pathを編集する" : "Pathを設定する";
     syncLengthFromOutline();   // 墳丘のPathから墳丘長を引き直す
   }
-  document.getElementById("e-outline-clear").addEventListener("click", () => {
-    if (!confirm("輪郭の設定をクリアしますか？")) return;
-    outlineDraft = { mound: [], moats: [], lines: [] };
-    updateOutlineStatus();
-  });
 
   function updateOutlineDraftLayer() {
     const src = map.getSource("outline-draft-src");
@@ -678,7 +703,7 @@
       wrap.appendChild(del);
     };
 
-    addToggle("墳丘の輪郭", "mound");
+    addToggle("墳丘のPath", "mound");
     outlineDraft.moats.forEach((m, i) => {
       addToggle(`周堤${i + 1}：外側`, `moat:${i}:outer`);
       addToggle(`周堤${i + 1}：内側`, `moat:${i}:inner`);

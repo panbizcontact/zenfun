@@ -236,7 +236,18 @@ a { color: var(--red); }
 
 /* 改訂履歴 */
 #d-history-list {
-  list-style: none; margin: 12px 0 0; padding: 0; font-size: 13px; color: var(--ink-2);
+  list-style: none; margin: 0; padding: 0; font-size: 13px; color: var(--ink-2);
+}
+#d-history-list li:last-child { border-bottom: none; }
+/* 改訂履歴は紙を伸ばさず、この枠の中でスクロールさせる */
+#d-history-scroll {
+  max-height: 220px; overflow-y: auto;
+  border: 1px solid var(--rule); border-radius: 2px;
+  padding: 0 12px; margin-top: 10px; background: var(--paper-2);
+}
+#d-history-scroll::-webkit-scrollbar { width: 8px; }
+#d-history-scroll::-webkit-scrollbar-thumb {
+  background: var(--rule-strong); border-radius: 4px;
 }
 #d-history-list li {
   padding: 8px 0; border-bottom: 1px solid var(--paper-3);
@@ -285,6 +296,7 @@ a { color: var(--red); }
 }
 #detail-paper .paper-table td input[type="number"] { width: 96px; }
 #detail-paper .paper-table td #e-designation { width: 180px; }
+#detail-paper .paper-table td #e-period { width: 110px; }
 
 /* 概要は本文と同じ組みのまま、内容に合わせて伸びる */
 #detail-paper #e-desc {
@@ -307,7 +319,7 @@ a { color: var(--red); }
 .field-note { color: var(--ink-3); font-size: 11px; margin-left: 8px; }
 .field-note:empty { display: none; }
 
-/* 切り替え用のボタン（輪郭の設定・標高の取得など） */
+/* 切り替え用のボタン（Pathの設定・標高の取得など） */
 /* 諸元の行に置くので、行の高さを押し広げない大きさにする */
 .btn-toggle {
   padding: 0 11px; border: 1px solid var(--red); border-radius: 999px;
@@ -320,7 +332,7 @@ a { color: var(--red); }
 .btn-toggle.subtle { border-color: var(--rule-strong); color: var(--ink-2); }
 .btn-toggle.subtle:hover { border-color: var(--ink-3); background: var(--paper-2); color: var(--ink); }
 
-/* ── 輪郭編集ツールバー ── */
+/* ── Path編集ツールバー ── */
 #outline-map-toolbar {
   position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
   z-index: 1500; display: none; align-items: center; gap: 10px; flex-wrap: wrap;
@@ -345,7 +357,7 @@ a { color: var(--red); }
 #outline-targets button.add { color: var(--red); border-color: var(--red); }
 #outline-targets button.danger { color: var(--ink-3); border-style: dashed; font-size: 11px; }
 
-/* 地図上で輪郭編集中は他のパネルを隠して全面を使う */
+/* 地図上でPathを描いている間は他のパネルを隠して全面を使う */
 body.map-edit-mode #search-panel,
 body.map-edit-mode #detail-overlay { display: none; }
 

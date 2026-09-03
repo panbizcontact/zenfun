@@ -128,7 +128,11 @@
           <button type="button" id="e-height-btn" class="btn-toggle subtle">標高から求める</button>
           <span class="field-note" id="e-height-note"></span>
         </td></tr>
-        <tr><th>築造年代</th><td><span id="e-period" class="auto-value">—</span></td></tr>
+        <tr><th>築造年代</th><td>
+          <input id="e-period" placeholder="400〜500" inputmode="numeric"
+                 aria-label="築造年代（数字と〜のみ）">
+          <span class="field-note" id="e-period-note"></span>
+        </td></tr>
         <tr><th>指定 <em>必須</em></th><td>
           <input id="e-designation" list="designation-options" placeholder="国史跡 など">
           <datalist id="designation-options">
@@ -141,10 +145,9 @@
           </datalist>
         </td></tr>
         <tr><th>座標</th><td><span id="e-coord" class="auto-value">—</span></td></tr>
-        <tr><th>輪郭</th><td>
+        <tr><th>Path</th><td>
           <span id="e-outline-status" class="auto-value">未設定</span>
-          <button type="button" id="e-outline-btn" class="btn-toggle">設定する</button>
-          <button type="button" id="e-outline-clear" class="btn-toggle subtle" style="display:none;">消す</button>
+          <button type="button" id="e-outline-btn" class="btn-toggle">Pathを設定する</button>
         </td></tr>
       </tbody></table>
     </section>
@@ -158,8 +161,7 @@
     <section class="paper-section" id="d-history-section">
       <h2 class="paper-h2">改訂履歴</h2>
       <button id="d-history-toggle" class="link-btn">履歴を表示する</button>
-      <ul id="d-history-list" style="display:none;"></ul>
-      <button id="d-history-more" class="link-btn" style="display:none;"></button>
+      <div id="d-history-scroll" style="display:none;"><ul id="d-history-list"></ul></div>
     </section>
 
     <input id="e-lat" type="hidden"><input id="e-lng" type="hidden">
@@ -173,7 +175,7 @@
   </article>
 </div>
 
-<!-- ── 地図上で輪郭を描くときの案内ツールバー（記入用紙を一時的に隠して操作） ── -->
+<!-- ── 地図上で Path を描くときの案内ツールバー（紙を一時的に隠して操作） ── -->
 <div id="outline-map-toolbar">
   <span>地図をクリックして頂点を追加してください</span>
   <div id="outline-targets"></div>
