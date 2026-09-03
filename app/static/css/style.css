@@ -158,11 +158,11 @@ a { color: var(--red); }
 
 .paper {
   position: relative;
-  width: 100%; max-width: 720px;
+  width: 100%; max-width: 580px;
   background: var(--paper);
   border-top: 3px solid var(--red);
   box-shadow: var(--shadow);
-  padding: 44px 56px 36px;
+  padding: 40px 44px 32px;
   margin: auto;
 }
 .paper-close {
@@ -272,7 +272,19 @@ a { color: var(--red); }
   color: var(--ink);
 }
 .auto-address.pending { color: var(--ink-3); }
-.inline-actions { display: flex; gap: 18px; margin-top: 10px; flex-wrap: wrap; }
+.inline-actions { display: flex; gap: 10px; margin-top: 12px; flex-wrap: wrap; }
+
+/* 切り替え用のボタン（輪郭の設定・標高の取得など） */
+.btn-toggle {
+  padding: 8px 18px; border: 1px solid var(--red); border-radius: 999px;
+  background: var(--paper); color: var(--red); font-family: var(--sans); font-size: 13px;
+  cursor: pointer; letter-spacing: .04em;
+}
+.btn-toggle:hover { background: var(--red-tint); }
+.btn-toggle.on { background: var(--red); color: #fff; }
+.btn-toggle.subtle { border-color: var(--rule-strong); color: var(--ink-2); }
+.btn-toggle.subtle:hover { border-color: var(--ink-3); background: var(--paper-2); color: var(--ink); }
+.paper-form input[readonly] { background: var(--paper-2); color: var(--ink-2); }
 
 /* ── 輪郭編集ツールバー ── */
 #outline-map-toolbar {
@@ -398,7 +410,7 @@ body.map-edit-mode #detail-overlay { display: none; }
 
 @media (max-width: 720px) {
   #search-panel { width: calc(100vw - 24px); left: 12px; top: 12px; max-height: 52vh; }
-  .paper { padding: 32px 22px 26px; }
+  .paper { padding: 30px 20px 24px; }
   .paper-title { font-size: 23px; }
   .field-grid { grid-template-columns: 1fr; }
   .paper-table th { width: 96px; font-size: 12px; }

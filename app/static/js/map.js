@@ -306,17 +306,17 @@
     setVal("m-name", k.name); setVal("m-kana", k.name_kana);
     setVal("m-lat", k.lat); setVal("m-lng", k.lng);
     setVal("m-pref", k.prefecture); setVal("m-muni", k.municipality);
-    setVal("m-shape", k.shape); setVal("m-length", k.length_m);
+    setVal("m-shape", isNew ? "" : k.shape); setVal("m-length", k.length_m);
     setVal("m-height", k.height_m);
     setVal("m-designation", k.designation);
     setVal("m-desc", k.description);
-    // 新規で座標未設定なら地図中心を初期値に
+    // 新規は地図中心（中心十字マークの位置）をその古墳の座標として使う
     if (isNew) {
       const c = map.getCenter();
       setVal("m-lat", c.lat.toFixed(6)); setVal("m-lng", c.lng.toFixed(6));
     }
-    showAddress(k.prefecture, k.municipality);
-    refreshAddress();  // 緯度経度から最新の行政区画を引き直す
+    document.getElementById("m-height-note").textContent = "";
+    refreshAddress();  // 緯度経度から行政区画を裏で解決しておく
     outlineDraft = {
       mound: (k.outline && k.outline.mound) ? k.outline.mound.slice() : [],
       moats: (k.outline && k.outline.moats)
@@ -329,10 +329,19 @@
     document.getElementById("modal-overlay").classList.add("open");
   }
 
-  document.getElementById("kofun-form").addEventListener("submit", (e) => {
+  document.getElementById("kofun-form").addEventListener("submit", async (e) => {
     e.preventDefault();
     const form = e.target;
     const id = form.dataset.id;
+    // 行政区画がまだ解決できていなければ、保存前に取得を待つ
+    if (!val("m-pref") && val("m-lat") && val("m-lng")) {
+      try {
+        const d = await fetch(`/api/reverse-geocode?lat=${val("m-lat")}&lng=${val("m-lng")}`)
+          .then((r) => r.json());
+        setVal("m-pref", d.prefecture || "");
+        setVal("m-muni", d.municipality || "");
+      } catch (_) { /* 取得できなくても保存は続行する */ }
+    }
     const outlineObj = {};
     if (outlineDraft.mound.length >= 3) outlineObj.mound = outlineDraft.mound;
     const validMoats = outlineDraft.moats
@@ -384,49 +393,90 @@
   });
 
   // ── 行政区画の自動判定（緯度経度 → 都道府県・市区町村） ──
-  // 国土地理院の逆ジオコーダーをサーバ経由で呼ぶ。手入力はさせず、常に座標から導出する。
+  // 入力欄は設けず、座標から国土地理院の逆ジオコーダーで裏側で解決する。
   let addressSeq = 0;
-
-  function showAddress(pref, muni) {
-    const el = document.getElementById("m-address");
-    const text = [pref, muni].filter(Boolean).join(" ");
-    el.textContent = text || "—";
-    el.classList.toggle("pending", !text);
-  }
 
   function refreshAddress() {
     const lat = parseFloat(val("m-lat"));
     const lng = parseFloat(val("m-lng"));
-    const el = document.getElementById("m-address");
-    if (isNaN(lat) || isNaN(lng)) {
-      setVal("m-pref", ""); setVal("m-muni", "");
-      showAddress("", "");
-      return;
-    }
+    if (isNaN(lat) || isNaN(lng)) { setVal("m-pref", ""); setVal("m-muni", ""); return; }
     const seq = ++addressSeq;
-    el.textContent = "判定中…";
-    el.classList.add("pending");
     fetch(`/api/reverse-geocode?lat=${lat}&lng=${lng}`)
       .then((r) => r.json())
       .then((d) => {
         if (seq !== addressSeq) return;  // 新しい問い合わせが始まっていれば破棄
         setVal("m-pref", d.prefecture || "");
         setVal("m-muni", d.municipality || "");
-        if (d.prefecture) showAddress(d.prefecture, d.municipality);
-        else {
-          el.textContent = "判定できませんでした（日本国外・海上の可能性）";
-          el.classList.add("pending");
-        }
       })
-      .catch(() => {
-        if (seq !== addressSeq) return;
-        el.textContent = "判定できませんでした";
-        el.classList.add("pending");
-      });
+      .catch(() => {});
   }
 
-  ["m-lat", "m-lng"].forEach((id) => {
-    document.getElementById(id).addEventListener("change", refreshAddress);
+  // ── 墳丘長: 輪郭（墳丘）が描かれていれば、その最大差し渡しを自動計算する ──
+  function distanceMeters(a, b) {
+    const R = 6378137;
+    const toRad = Math.PI / 180;
+    const dLat = (b[1] - a[1]) * toRad;
+    const dLng = (b[0] - a[0]) * toRad;
+    const lat1 = a[1] * toRad, lat2 = b[1] * toRad;
+    const h = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
+    return 2 * R * Math.asin(Math.sqrt(h));
+  }
+
+  function ringMaxLength(ring) {
+    let max = 0;
+    for (let i = 0; i < ring.length; i++) {
+      for (let j = i + 1; j < ring.length; j++) {
+        const d = distanceMeters(ring[i], ring[j]);
+        if (d > max) max = d;
+      }
+    }
+    return max;
+  }
+
+  // 墳丘のPathがあるときは墳丘長を自動計算し、手入力できないようにする
+  function syncLengthFromOutline() {
+    const input = document.getElementById("m-length");
+    const note = document.getElementById("m-length-note");
+    const mound = outlineDraft.mound;
+    if (mound.length >= 2) {
+      input.value = ringMaxLength(mound).toFixed(1);
+      input.readOnly = true;
+      note.textContent = "輪郭から自動計算";
+    } else {
+      input.readOnly = false;
+      note.textContent = "";
+    }
+  }
+
+  // ── 墳丘高: 国土地理院の標高から推定する ──
+  document.getElementById("m-height-btn").addEventListener("click", () => {
+    const lat = parseFloat(val("m-lat"));
+    const lng = parseFloat(val("m-lng"));
+    const note = document.getElementById("m-height-note");
+    if (isNaN(lat) || isNaN(lng)) { note.textContent = "座標が未設定です"; return; }
+
+    const body = { lat, lng };
+    if (outlineDraft.mound.length >= 3) {
+      body.ring = outlineDraft.mound;   // 墳丘の輪郭を周囲の基準面として使う
+    } else if (val("m-length")) {
+      body.length_m = val("m-length");  // 輪郭がなければ墳丘長から基準円の大きさを決める
+    }
+
+    note.textContent = "標高を取得中…";
+    fetch("/api/mound-height", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    })
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.height_m === null || d.height_m === undefined) {
+          note.textContent = "標高を取得できませんでした";
+          return;
+        }
+        document.getElementById("m-height").value = d.height_m;
+        note.textContent = `墳頂 ${d.summit_m}m − 周囲 ${d.base_m}m（DEMによる概算）`;
+      })
+      .catch(() => { note.textContent = "標高を取得できませんでした"; });
   });
 
   // ── 輪郭（墳丘・周堤）を地図上のクリックで描く ──
@@ -459,6 +509,9 @@
     document.getElementById("outline-status").textContent =
       parts.length ? parts.join(" / ") + " 設定済み" : "未設定";
     document.getElementById("outline-clear-btn").style.display = parts.length ? "" : "none";
+    document.getElementById("outline-map-btn").textContent =
+      parts.length ? "輪郭を編集する" : "輪郭を設定する";
+    syncLengthFromOutline();   // 墳丘のPathから墳丘長を引き直す
   }
   document.getElementById("outline-clear-btn").addEventListener("click", () => {
     if (!confirm("輪郭の設定をクリアしますか？")) return;
@@ -604,6 +657,15 @@
     document.body.classList.remove("map-edit-mode");
     const src = map.getSource("outline-draft-src");
     if (src) src.setData({ type: "FeatureCollection", features: [] });
+    // 墳丘を描いたら、その重心をこの古墳の座標として採用する
+    // （地点と輪郭がずれたまま登録されるのを防ぐ）
+    if (outlineDraft.mound.length >= 3) {
+      const n = outlineDraft.mound.length;
+      const lng = outlineDraft.mound.reduce((s, p) => s + p[0], 0) / n;
+      const lat = outlineDraft.mound.reduce((s, p) => s + p[1], 0) / n;
+      setVal("m-lat", lat.toFixed(6)); setVal("m-lng", lng.toFixed(6));
+      refreshAddress();
+    }
     updateOutlineStatus();
   }
 

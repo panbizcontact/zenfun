@@ -146,40 +146,55 @@
     </section>
 
     <section class="paper-section">
-      <h2 class="paper-h2"><span class="sec-no">二</span>所在</h2>
-      <div class="field-grid">
-        <div><label for="m-lat">緯度 <em>必須</em></label><input id="m-lat" type="number" step="any" required></div>
-        <div><label for="m-lng">経度 <em>必須</em></label><input id="m-lng" type="number" step="any" required></div>
-        <div class="full">
-          <label>行政区画<span class="field-note">緯度経度から自動判定されます</span></label>
-          <p class="auto-address" id="m-address">—</p>
-          <input id="m-pref" type="hidden"><input id="m-muni" type="hidden">
-        </div>
-      </div>
-    </section>
-
-    <section class="paper-section">
-      <h2 class="paper-h2"><span class="sec-no">三</span>規模・形状</h2>
+      <h2 class="paper-h2"><span class="sec-no">二</span>分類</h2>
       <div class="field-grid">
         <div>
-          <label for="m-shape">形状</label>
-          <select id="m-shape">
+          <label for="m-shape">形状 <em>必須</em></label>
+          <select id="m-shape" required>
+            <option value="">選択してください</option>
             {% for key, name in shapes.items() %}<option value="{{ key }}">{{ name }}</option>{% endfor %}
           </select>
         </div>
-        <div><label for="m-designation">指定</label><input id="m-designation" placeholder="国史跡 など"></div>
-        <div><label for="m-length">墳丘長 (m)</label><input id="m-length" type="number" step="any"></div>
-        <div><label for="m-height">墳丘高 (m)</label><input id="m-height" type="number" step="any"></div>
+        <div>
+          <label for="m-designation">指定 <em>必須</em></label>
+          <input id="m-designation" required list="designation-options" placeholder="国史跡 など">
+          <datalist id="designation-options">
+            <option value="国特別史跡"></option>
+            <option value="国史跡"></option>
+            <option value="県史跡"></option>
+            <option value="市史跡"></option>
+            <option value="町史跡"></option>
+            <option value="指定なし"></option>
+          </datalist>
+        </div>
       </div>
     </section>
 
     <section class="paper-section" id="outline-field">
-      <h2 class="paper-h2"><span class="sec-no">四</span>輪郭</h2>
-      <p class="field-note block">墳丘・周堤の形を地図上でなぞって記録します。</p>
+      <h2 class="paper-h2"><span class="sec-no">三</span>輪郭</h2>
+      <p class="field-note block">墳丘・周堤の形を地図上でなぞって記録します。墳丘を描くと墳丘長が自動計算されます。</p>
       <p class="auto-address" id="outline-status">未設定</p>
       <div class="inline-actions">
-        <button type="button" id="outline-map-btn" class="link-btn">地図で輪郭を描く</button>
-        <button type="button" id="outline-clear-btn" class="link-btn" style="display:none;">輪郭をクリア</button>
+        <button type="button" id="outline-map-btn" class="btn-toggle">輪郭を設定する</button>
+        <button type="button" id="outline-clear-btn" class="btn-toggle subtle" style="display:none;">輪郭を消す</button>
+      </div>
+    </section>
+
+    <section class="paper-section">
+      <h2 class="paper-h2"><span class="sec-no">四</span>規模</h2>
+      <div class="field-grid">
+        <div>
+          <label for="m-length">墳丘長 (m)<span class="field-note" id="m-length-note"></span></label>
+          <input id="m-length" type="number" step="any">
+        </div>
+        <div>
+          <label for="m-height">墳丘高 (m)<span class="field-note">国土地理院の標高から推定</span></label>
+          <input id="m-height" type="number" step="any">
+        </div>
+        <div class="full">
+          <button type="button" id="m-height-btn" class="btn-toggle subtle">標高から墳丘高を求める</button>
+          <span class="field-note" id="m-height-note"></span>
+        </div>
       </div>
     </section>
 
@@ -192,6 +207,9 @@
         </div>
       </div>
     </section>
+
+    <input id="m-lat" type="hidden"><input id="m-lng" type="hidden">
+    <input id="m-pref" type="hidden"><input id="m-muni" type="hidden">
 
     <footer class="paper-actions">
       <button type="button" id="m-cancel" class="btn-quiet">取消</button>
