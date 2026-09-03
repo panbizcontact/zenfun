@@ -340,6 +340,7 @@
   function fillEditor(k) {
     k = k || {};
     setVal("e-name", k.name);
+    setVal("e-kana", k.name_kana);
     setVal("e-shape", k.shape || "");
     setVal("e-designation", k.designation);
     setVal("e-length", k.length_m);
@@ -483,7 +484,7 @@
     if (validLines.length) outlineObj.lines = validLines;
 
     const payload = {
-      name: name,
+      name: name, name_kana: val("e-kana"),
       latitude: val("e-lat"), longitude: val("e-lng"),
       prefecture: val("e-pref"), municipality: val("e-muni"),
       shape: shape, length_m: val("e-length"), height_m: val("e-height"),
@@ -1038,13 +1039,21 @@
     return String(s || "").replace(/[&<>"']/g, (c) =>
       ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   }
+  // 築造年代の「期」は、記録された年から機械的に決める
+  // （〜299 出現期 / 300〜399 前期 / 400〜499 中期 / 500〜599 後期 / 600〜 終末期）
+  const PERIOD_BANDS = [[300, "出現期"], [400, "前期"], [500, "中期"], [600, "後期"]];
+
+  function periodOf(year) {
+    for (const [upto, name] of PERIOD_BANDS) if (year < upto) return name;
+    return "終末期";
+  }
+
   function periodText(k) {
-    if (k.year_from || k.year_to) {
-      const f = k.year_from != null ? fmtYear(k.year_from) : "";
-      const t = k.year_to != null ? fmtYear(k.year_to) : "";
-      return (k.period ? k.period + " " : "") + [f, t].filter(Boolean).join("〜");
-    }
-    return k.period || "—";
+    const base = k.year_from != null ? k.year_from : k.year_to;
+    if (base == null) return k.period || "—";
+    const f = k.year_from != null ? fmtYear(k.year_from) : "";
+    const t = k.year_to != null ? fmtYear(k.year_to) : "";
+    return periodOf(base) + " " + [f, t].filter(Boolean).join("〜");
   }
   function fmtYear(y) { return y < 0 ? "前" + (-y) : y + ""; }
 

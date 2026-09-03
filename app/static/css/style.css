@@ -311,6 +311,15 @@ a { color: var(--red); }
   letter-spacing: 0.06em; line-height: 1.4;
   padding: 0 6px; margin: 0 -6px;
 }
+/* ふりがなも見出し下の位置・字面のまま書き換える */
+#detail-paper .edit-kana {
+  width: calc(100% + 12px); text-align: center;
+  font-family: var(--sans); font-size: 12px; letter-spacing: 0.14em;
+  color: var(--ink-3); padding: 0 6px; margin: 8px -6px 0;
+}
+/* 行内に置くと行送りのぶん背が高くなるので、閲覧時の p と同じ塊にする */
+#detail-paper.editing .edit-kana { display: block; }
+
 /* 見出しと同じ高さに収めるため、上下の余白は持たせない */
 #detail-paper .edit-title {
   font-family: var(--serif); font-size: 30px; padding: 0 6px; margin: 0 -6px;

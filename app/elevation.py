@@ -2,9 +2,12 @@
 
 「墳丘高」は周囲の地面からの高さなので、単に中心地点の標高を入れると
 （海抜がそのまま入ってしまい）意味が変わってしまう。そこで
-    墳丘高 ≒ 墳頂（中心）の標高 − 周囲の基準面の標高
-として求める。周囲の基準面は、輪郭（墳丘のPath）があればその頂点、
-なければ中心から一定距離の円周上の点をサンプリングし、その中央値を使う。
+    墳丘高 ≒ 墳頂の標高 − 周囲の基準面の標高
+として求める。墳頂は、中心の一点ではなく墳丘の内側を何点か測ってその
+最高標高をとる（墳頂が中心からずれている古墳や、中心が凹んでいる場合に
+実際より低く出るのを避けるため）。周囲の基準面は、Path（墳丘の輪郭）が
+あればその頂点、なければ中心から一定距離の円周上の点をサンプリングし、
+その中央値を使う。
 
 いずれもDEM（数値標高モデル）由来の概算値であり、実測値の代わりにはならない。
 """
@@ -20,6 +23,8 @@ GSI_ELEVATION = "https://cyberjapandata2.gsi.go.jp/general/dem/scripts/getelevat
 USER_AGENT = "ZENFUN/1.0 (https://zenfun.onrender.com)"
 TIMEOUT_SEC = 8
 MAX_SAMPLES = 8          # 周囲のサンプリング点数（APIへの負荷を抑える）
+INNER_SAMPLES = 8        # 墳頂を探すために墳丘の内側を測る点数
+INNER_RATIO = 0.5        # 内側の点をどのくらい中心寄りに取るか
 DEFAULT_BASE_RADIUS_M = 40.0
 
 
@@ -71,6 +76,19 @@ def _circle_samples(lat, lng, radius_m, count=MAX_SAMPLES):
     return pts
 
 
+def _inner_samples(lat, lng, ring=None, radius_m=None, count=INNER_SAMPLES):
+    """墳丘の内側の点を返す。Pathがあれば重心と各頂点の間を、なければ中心の
+    まわりの小さな円をとる。中心そのものは呼び出し側で必ず測る。"""
+    if ring and len(ring) >= 3:
+        pts = _ring_samples(ring, count)
+        c_lng = sum(p[0] for p in pts) / len(pts)
+        c_lat = sum(p[1] for p in pts) / len(pts)
+        return [[c_lng + (p[0] - c_lng) * INNER_RATIO,
+                 c_lat + (p[1] - c_lat) * INNER_RATIO] for p in pts]
+    r = (radius_m or DEFAULT_BASE_RADIUS_M) * INNER_RATIO
+    return _circle_samples(lat, lng, r, count)
+
+
 def _median(values):
     s = sorted(values)
     n = len(s)
@@ -89,9 +107,14 @@ def estimate_mound_height(lat: float, lng: float, ring=None, base_radius_m=None)
     """墳丘高の推定値を返す。
     {"height_m": 12.3, "summit_m": 36.2, "base_m": 23.9, "samples": 8} 形式。
     取得できない場合は height_m を None にして返す（例外は投げない）。"""
-    summit = get_elevation(lat, lng)
-    if summit is None:
+    # 墳頂: 中心と墳丘の内側を測り、その最高標高をとる
+    summits = [get_elevation(lat, lng)]
+    for lng_i, lat_i in _inner_samples(lat, lng, ring=ring, radius_m=base_radius_m):
+        summits.append(get_elevation(lat_i, lng_i))
+    summits = [e for e in summits if e is not None]
+    if not summits:
         return {"height_m": None, "summit_m": None, "base_m": None, "samples": 0}
+    summit = max(summits)
 
     if ring and len(ring) >= 3:
         sample_pts = _ring_samples(ring)
