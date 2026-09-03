@@ -82,78 +82,46 @@
   </div>
 </aside>
 
-<!-- ── 詳細（画面中央・論文体裁） ── -->
+<!-- ── 詳細（画面中央・論文体裁）。鉛筆アイコンでそのまま編集に切り替わる ── -->
 <div id="detail-overlay">
   <article class="paper" id="detail-paper">
-    <button id="d-close" class="paper-close" aria-label="閉じる">×</button>
+    <div class="paper-tools">
+      <button id="d-edit" class="icon-btn" type="button" aria-label="編集する" title="編集する">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+             stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/>
+        </svg>
+      </button>
+      <button id="d-close" class="icon-btn" type="button" aria-label="閉じる" title="閉じる">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+             stroke-width="1.7" stroke-linecap="round">
+          <path d="M5 5l14 14M19 5L5 19"/>
+        </svg>
+      </button>
+    </div>
 
     <header class="paper-head">
       <p class="paper-eyebrow" id="d-eyebrow"></p>
-      <h1 class="paper-title" id="d-name"></h1>
-      <p class="paper-kana" id="d-kana"></p>
-      <p class="paper-byline" id="d-byline"></p>
+      <h1 class="paper-title view-field" id="d-name"></h1>
+      <input class="edit-field edit-title" id="e-name" placeholder="名称" aria-label="名称">
+      <p class="paper-kana view-field" id="d-kana"></p>
+      <p class="paper-byline view-field" id="d-byline"></p>
+      <p class="paper-byline edit-field">名称・形状・指定は必須です。</p>
     </header>
 
     <section class="paper-section">
       <h2 class="paper-h2">諸元</h2>
-      <table class="paper-table"><tbody id="d-table"></tbody></table>
-    </section>
-
-    <section class="paper-section" id="d-desc-section">
-      <h2 class="paper-h2">概要</h2>
-      <p class="paper-body" id="d-desc"></p>
-    </section>
-
-    <section class="paper-section" id="d-source-section">
-      <h2 class="paper-h2">出典</h2>
-      <p class="paper-cite"><a id="d-source" href="#" target="_blank" rel="noopener"></a></p>
-    </section>
-
-    <section class="paper-section">
-      <h2 class="paper-h2">改訂履歴</h2>
-      <button id="d-history-toggle" class="link-btn">履歴を表示する</button>
-      <ul id="d-history-list" style="display:none;"></ul>
-    </section>
-
-    <footer class="paper-actions">
-      <button id="d-edit" class="btn-primary">編集する</button>
-      <button id="d-delete" class="btn-quiet">削除を申請</button>
-    </footer>
-  </article>
-</div>
-
-<!-- ── 追加・編集（画面中央・論文体裁の記入用紙） ── -->
-<div id="modal-overlay">
-  <form class="paper paper-form" id="kofun-form" data-id="">
-    <header class="paper-head">
-      <p class="paper-eyebrow">全墳 ZENFUN 登録原簿</p>
-      <h1 class="paper-title" id="modal-title">古墳を追加</h1>
-      <p class="paper-byline">記入後、管理者の査読を経て収録されます。</p>
-    </header>
-
-    <section class="paper-section">
-      <h2 class="paper-h2"><span class="sec-no">一</span>名称</h2>
-      <div class="field-grid">
-        <div class="full">
-          <label for="m-name">名称 <em>必須</em></label>
-          <input id="m-name" required placeholder="例: 大仙陵古墳">
-        </div>
-      </div>
-    </section>
-
-    <section class="paper-section">
-      <h2 class="paper-h2"><span class="sec-no">二</span>分類</h2>
-      <div class="field-grid">
-        <div>
-          <label for="m-shape">形状 <em>必須</em></label>
-          <select id="m-shape" required>
+      <table class="paper-table view-field"><tbody id="d-table"></tbody></table>
+      <table class="paper-table edit-field"><tbody>
+        <tr><th>所在地</th><td><span id="e-address" class="auto-value">—</span></td></tr>
+        <tr><th>形状 <em>必須</em></th><td>
+          <select id="e-shape">
             <option value="">選択してください</option>
             {% for key, name in shapes.items() %}<option value="{{ key }}">{{ name }}</option>{% endfor %}
           </select>
-        </div>
-        <div>
-          <label for="m-designation">指定 <em>必須</em></label>
-          <input id="m-designation" required list="designation-options" placeholder="国史跡 など">
+        </td></tr>
+        <tr><th>指定 <em>必須</em></th><td>
+          <input id="e-designation" list="designation-options" placeholder="国史跡 など">
           <datalist id="designation-options">
             <option value="国特別史跡"></option>
             <option value="国史跡"></option>
@@ -162,56 +130,46 @@
             <option value="町史跡"></option>
             <option value="指定なし"></option>
           </datalist>
-        </div>
-      </div>
+        </td></tr>
+        <tr><th>墳丘長 (m)</th><td>
+          <input id="e-length" type="number" step="any">
+          <span class="field-note" id="e-length-note"></span>
+        </td></tr>
+        <tr><th>墳丘高 (m)</th><td>
+          <input id="e-height" type="number" step="any">
+          <button type="button" id="e-height-btn" class="btn-toggle subtle">標高から求める</button>
+          <span class="field-note" id="e-height-note"></span>
+        </td></tr>
+        <tr><th>輪郭</th><td>
+          <span id="e-outline-status" class="auto-value">未設定</span>
+          <button type="button" id="e-outline-btn" class="btn-toggle">輪郭を設定する</button>
+          <button type="button" id="e-outline-clear" class="btn-toggle subtle" style="display:none;">消す</button>
+        </td></tr>
+      </tbody></table>
     </section>
 
-    <section class="paper-section" id="outline-field">
-      <h2 class="paper-h2"><span class="sec-no">三</span>輪郭</h2>
-      <p class="field-note block">墳丘・周堤の形を地図上でなぞって記録します。墳丘を描くと墳丘長が自動計算されます。</p>
-      <p class="auto-address" id="outline-status">未設定</p>
-      <div class="inline-actions">
-        <button type="button" id="outline-map-btn" class="btn-toggle">輪郭を設定する</button>
-        <button type="button" id="outline-clear-btn" class="btn-toggle subtle" style="display:none;">輪郭を消す</button>
-      </div>
+    <section class="paper-section" id="d-desc-section">
+      <h2 class="paper-h2">概要</h2>
+      <p class="paper-body view-field" id="d-desc"></p>
+      <textarea class="edit-field" id="e-desc" placeholder="立地、構造、出土品、調査経過など"></textarea>
     </section>
 
-    <section class="paper-section">
-      <h2 class="paper-h2"><span class="sec-no">四</span>規模</h2>
-      <div class="field-grid">
-        <div>
-          <label for="m-length">墳丘長 (m)<span class="field-note" id="m-length-note"></span></label>
-          <input id="m-length" type="number" step="any">
-        </div>
-        <div>
-          <label for="m-height">墳丘高 (m)<span class="field-note">国土地理院の標高から推定</span></label>
-          <input id="m-height" type="number" step="any">
-        </div>
-        <div class="full">
-          <button type="button" id="m-height-btn" class="btn-toggle subtle">標高から墳丘高を求める</button>
-          <span class="field-note" id="m-height-note"></span>
-        </div>
-      </div>
+    <section class="paper-section view-field" id="d-history-section">
+      <h2 class="paper-h2">改訂履歴</h2>
+      <button id="d-history-toggle" class="link-btn">履歴を表示する</button>
+      <ul id="d-history-list" style="display:none;"></ul>
+      <button id="d-history-more" class="link-btn" style="display:none;"></button>
     </section>
 
-    <section class="paper-section">
-      <h2 class="paper-h2"><span class="sec-no">五</span>記述</h2>
-      <div class="field-grid">
-        <div class="full">
-          <label for="m-desc">概要</label>
-          <textarea id="m-desc" placeholder="立地、構造、出土品、調査経過など"></textarea>
-        </div>
-      </div>
-    </section>
-
-    <input id="m-lat" type="hidden"><input id="m-lng" type="hidden">
-    <input id="m-pref" type="hidden"><input id="m-muni" type="hidden">
+    <input id="e-lat" type="hidden"><input id="e-lng" type="hidden">
+    <input id="e-pref" type="hidden"><input id="e-muni" type="hidden">
 
     <footer class="paper-actions">
-      <button type="button" id="m-cancel" class="btn-quiet">取消</button>
-      <button type="submit" class="btn-primary">保存する</button>
+      <button id="d-delete" class="btn-quiet view-field" type="button">削除を申請</button>
+      <button id="e-cancel" class="btn-quiet edit-field" type="button">取消</button>
+      <button id="e-save" class="btn-primary edit-field" type="button">保存する</button>
     </footer>
-  </form>
+  </article>
 </div>
 
 <!-- ── 地図上で輪郭を描くときの案内ツールバー（記入用紙を一時的に隠して操作） ── -->

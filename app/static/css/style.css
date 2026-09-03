@@ -148,13 +148,13 @@ a { color: var(--red); }
 .btn-add:hover { background: var(--red-deep); border-color: var(--red-deep); }
 
 /* ── 論文体裁の「紙」（詳細・記入用紙で共用） ── */
-#detail-overlay, #modal-overlay {
+#detail-overlay {
   position: fixed; inset: 0; z-index: 1000;
   background: rgba(23, 20, 18, 0.42);
   display: none; align-items: flex-start; justify-content: center;
   padding: 40px 20px; overflow-y: auto;
 }
-#detail-overlay.open, #modal-overlay.open { display: flex; }
+#detail-overlay.open { display: flex; }
 
 .paper {
   position: relative;
@@ -165,12 +165,14 @@ a { color: var(--red); }
   padding: 40px 44px 32px;
   margin: auto;
 }
-.paper-close {
-  position: absolute; top: 14px; right: 16px;
-  border: none; background: none; font-size: 22px; line-height: 1;
-  color: var(--ink-3); cursor: pointer; padding: 4px 8px;
+.paper-tools {
+  position: absolute; top: 12px; right: 14px; display: flex; gap: 2px;
 }
-.paper-close:hover { color: var(--red); }
+.icon-btn {
+  border: none; background: none; color: var(--ink-3); cursor: pointer;
+  padding: 6px; line-height: 0; border-radius: 2px;
+}
+.icon-btn:hover { color: var(--red); background: var(--red-tint); }
 
 .paper-head { text-align: center; padding-bottom: 22px; border-bottom: 1px solid var(--rule); }
 .paper-eyebrow {
@@ -206,7 +208,6 @@ a { color: var(--red); }
   margin: 0; font-size: 14.5px; line-height: 2; color: var(--ink);
   text-align: justify;
 }
-.paper-cite { margin: 0; font-size: 13px; line-height: 1.9; color: var(--ink-2); word-break: break-all; }
 
 .paper-actions {
   margin-top: 34px; padding-top: 20px; border-top: 1px solid var(--rule);
@@ -243,48 +244,55 @@ a { color: var(--red); }
 }
 #d-history-list .link-btn { margin-left: auto; }
 
-/* ── 記入用紙（フォーム） ── */
-.field-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px 20px; }
-.field-grid .full { grid-column: 1 / -1; }
-.field-grid label, .paper-form label {
-  display: block; font-size: 12px; color: var(--ink-2); margin-bottom: 6px;
-  letter-spacing: 0.06em;
-}
-.field-grid label em, .paper-form label em {
+/* ── 詳細の紙の上での編集（鉛筆アイコンで切り替え） ── */
+#detail-paper .edit-field { display: none; }
+#detail-paper.editing .edit-field { display: revert; }
+#detail-paper.editing .view-field { display: none; }
+/* 新規登録中は履歴や削除など、既存の記録に対する操作を出さない */
+#detail-paper.is-new #d-history-section,
+#detail-paper.is-new #d-delete { display: none; }
+
+.paper-table th em {
   font-style: normal; color: var(--red); font-size: 10px; margin-left: 6px;
   letter-spacing: 0.1em;
 }
-.field-note { color: var(--ink-3); font-size: 11px; margin-left: 8px; }
-.field-note.block { display: block; margin: 0 0 10px; }
-.paper-form input, .paper-form select, .paper-form textarea {
-  width: 100%; padding: 9px 12px; font-family: var(--sans); font-size: 14px;
+.auto-value { color: var(--ink-2); }
+
+#detail-paper input, #detail-paper select, #detail-paper textarea {
+  padding: 7px 10px; font-family: var(--sans); font-size: 14px;
   border: 1px solid var(--rule-strong); border-radius: 2px;
   background: var(--paper); color: var(--ink);
   transition: border-color .15s, box-shadow .15s;
 }
-.paper-form input:focus, .paper-form select:focus, .paper-form textarea:focus {
+#detail-paper input:focus, #detail-paper select:focus, #detail-paper textarea:focus {
   outline: none; border-color: var(--red); box-shadow: 0 0 0 3px var(--red-tint);
 }
-.paper-form textarea { min-height: 130px; resize: vertical; line-height: 1.9; }
-.auto-address {
-  margin: 0; padding: 9px 12px; font-size: 14px;
-  background: var(--paper-2); border: 1px solid var(--rule); border-radius: 2px;
-  color: var(--ink);
+#detail-paper input[readonly] { background: var(--paper-2); color: var(--ink-2); }
+#detail-paper .paper-table td input,
+#detail-paper .paper-table td select { width: 100%; max-width: 260px; }
+#detail-paper .paper-table td input[type="number"] { max-width: 130px; }
+#detail-paper #e-desc { width: 100%; min-height: 150px; line-height: 1.9; resize: vertical; }
+
+/* 名称は見出しの位置でそのまま書き換える */
+.edit-title {
+  width: 100%; text-align: center;
+  font-family: var(--serif); font-size: 26px; font-weight: 600;
+  letter-spacing: 0.06em; color: var(--ink);
 }
-.auto-address.pending { color: var(--ink-3); }
-.inline-actions { display: flex; gap: 10px; margin-top: 12px; flex-wrap: wrap; }
+
+.field-note { color: var(--ink-3); font-size: 11px; margin-left: 8px; }
+.field-note:empty { display: none; }
 
 /* 切り替え用のボタン（輪郭の設定・標高の取得など） */
 .btn-toggle {
-  padding: 8px 18px; border: 1px solid var(--red); border-radius: 999px;
-  background: var(--paper); color: var(--red); font-family: var(--sans); font-size: 13px;
-  cursor: pointer; letter-spacing: .04em;
+  padding: 5px 14px; border: 1px solid var(--red); border-radius: 999px;
+  background: var(--paper); color: var(--red); font-family: var(--sans); font-size: 12px;
+  cursor: pointer; letter-spacing: .04em; margin-left: 8px;
 }
 .btn-toggle:hover { background: var(--red-tint); }
 .btn-toggle.on { background: var(--red); color: #fff; }
 .btn-toggle.subtle { border-color: var(--rule-strong); color: var(--ink-2); }
 .btn-toggle.subtle:hover { border-color: var(--ink-3); background: var(--paper-2); color: var(--ink); }
-.paper-form input[readonly] { background: var(--paper-2); color: var(--ink-2); }
 
 /* ── 輪郭編集ツールバー ── */
 #outline-map-toolbar {
@@ -412,7 +420,6 @@ body.map-edit-mode #detail-overlay { display: none; }
   #search-panel { width: calc(100vw - 24px); left: 12px; top: 12px; max-height: 52vh; }
   .paper { padding: 30px 20px 24px; }
   .paper-title { font-size: 23px; }
-  .field-grid { grid-template-columns: 1fr; }
   .paper-table th { width: 96px; font-size: 12px; }
-  #detail-overlay, #modal-overlay { padding: 16px 10px; }
+  #detail-overlay { padding: 16px 10px; }
 }
