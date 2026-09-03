@@ -104,9 +104,8 @@
       <p class="paper-eyebrow" id="d-eyebrow"></p>
       <h1 class="paper-title view-field" id="d-name"></h1>
       <input class="edit-field edit-title" id="e-name" placeholder="名称" aria-label="名称">
-      <p class="paper-kana view-field" id="d-kana"></p>
-      <p class="paper-byline view-field" id="d-byline"></p>
-      <p class="paper-byline edit-field">名称・形状・指定は必須です。</p>
+      <p class="paper-kana" id="d-kana"></p>
+      <p class="paper-byline" id="d-byline"></p>
     </header>
 
     <section class="paper-section">
@@ -120,6 +119,16 @@
             {% for key, name in shapes.items() %}<option value="{{ key }}">{{ name }}</option>{% endfor %}
           </select>
         </td></tr>
+        <tr><th>墳丘長</th><td>
+          <input id="e-length" type="number" step="any" placeholder="—">
+          <span class="field-note" id="e-length-note"></span>
+        </td></tr>
+        <tr><th>墳丘高</th><td>
+          <input id="e-height" type="number" step="any" placeholder="—">
+          <button type="button" id="e-height-btn" class="btn-toggle subtle">標高から求める</button>
+          <span class="field-note" id="e-height-note"></span>
+        </td></tr>
+        <tr><th>築造年代</th><td><span id="e-period" class="auto-value">—</span></td></tr>
         <tr><th>指定 <em>必須</em></th><td>
           <input id="e-designation" list="designation-options" placeholder="国史跡 など">
           <datalist id="designation-options">
@@ -131,18 +140,10 @@
             <option value="指定なし"></option>
           </datalist>
         </td></tr>
-        <tr><th>墳丘長 (m)</th><td>
-          <input id="e-length" type="number" step="any">
-          <span class="field-note" id="e-length-note"></span>
-        </td></tr>
-        <tr><th>墳丘高 (m)</th><td>
-          <input id="e-height" type="number" step="any">
-          <button type="button" id="e-height-btn" class="btn-toggle subtle">標高から求める</button>
-          <span class="field-note" id="e-height-note"></span>
-        </td></tr>
+        <tr><th>座標</th><td><span id="e-coord" class="auto-value">—</span></td></tr>
         <tr><th>輪郭</th><td>
           <span id="e-outline-status" class="auto-value">未設定</span>
-          <button type="button" id="e-outline-btn" class="btn-toggle">輪郭を設定する</button>
+          <button type="button" id="e-outline-btn" class="btn-toggle">設定する</button>
           <button type="button" id="e-outline-clear" class="btn-toggle subtle" style="display:none;">消す</button>
         </td></tr>
       </tbody></table>
@@ -151,10 +152,10 @@
     <section class="paper-section" id="d-desc-section">
       <h2 class="paper-h2">概要</h2>
       <p class="paper-body view-field" id="d-desc"></p>
-      <textarea class="edit-field" id="e-desc" placeholder="立地、構造、出土品、調査経過など"></textarea>
+      <textarea class="edit-field" id="e-desc" rows="1" placeholder="立地、構造、出土品、調査経過など"></textarea>
     </section>
 
-    <section class="paper-section view-field" id="d-history-section">
+    <section class="paper-section" id="d-history-section">
       <h2 class="paper-h2">改訂履歴</h2>
       <button id="d-history-toggle" class="link-btn">履歴を表示する</button>
       <ul id="d-history-list" style="display:none;"></ul>

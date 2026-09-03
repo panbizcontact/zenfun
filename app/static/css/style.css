@@ -245,8 +245,9 @@ a { color: var(--red); }
 #d-history-list .link-btn { margin-left: auto; }
 
 /* ── 詳細の紙の上での編集（鉛筆アイコンで切り替え） ── */
-#detail-paper .edit-field { display: none; }
+#detail-paper .edit-field, #detail-paper #e-desc { display: none; }
 #detail-paper.editing .edit-field { display: revert; }
+#detail-paper.editing #e-desc { display: block; }
 #detail-paper.editing .view-field { display: none; }
 /* 新規登録中は履歴や削除など、既存の記録に対する操作を出さない */
 #detail-paper.is-new #d-history-section,
@@ -258,36 +259,61 @@ a { color: var(--red); }
 }
 .auto-value { color: var(--ink-2); }
 
+/* 編集欄は枠を持たず、閲覧時と同じ字面・同じ行の高さのまま書き換えられるようにする */
 #detail-paper input, #detail-paper select, #detail-paper textarea {
-  padding: 7px 10px; font-family: var(--sans); font-size: 14px;
-  border: 1px solid var(--rule-strong); border-radius: 2px;
-  background: var(--paper); color: var(--ink);
-  transition: border-color .15s, box-shadow .15s;
+  font-family: var(--sans); font-size: 14px; color: var(--ink);
+  border: none; border-radius: 2px; background: transparent;
+  padding: 2px 6px; margin: -2px -6px;
+  transition: background-color .15s;
+}
+#detail-paper input:hover, #detail-paper select:hover, #detail-paper textarea:hover {
+  background: var(--paper-2);
 }
 #detail-paper input:focus, #detail-paper select:focus, #detail-paper textarea:focus {
-  outline: none; border-color: var(--red); box-shadow: 0 0 0 3px var(--red-tint);
+  outline: none; background: var(--red-tint);
 }
-#detail-paper input[readonly] { background: var(--paper-2); color: var(--ink-2); }
-#detail-paper .paper-table td input,
-#detail-paper .paper-table td select { width: 100%; max-width: 260px; }
-#detail-paper .paper-table td input[type="number"] { max-width: 130px; }
-#detail-paper #e-desc { width: 100%; min-height: 150px; line-height: 1.9; resize: vertical; }
+#detail-paper input::placeholder, #detail-paper textarea::placeholder { color: var(--ink-3); }
+/* 数値の増減ボタンは字面を乱すので出さない */
+#detail-paper input[type="number"] { -moz-appearance: textfield; }
+#detail-paper input[type="number"]::-webkit-outer-spin-button,
+#detail-paper input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+/* 形状の選択も枠を出さず、小さな三角だけ添える */
+#detail-paper select {
+  -webkit-appearance: none; appearance: none; padding-right: 20px;
+  background-image: url("data:image/svg+xml;charset=utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='9' height='6'%3E%3Cpath d='M0 0l4.5 5L9 0z' fill='%238d8481'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 6px center;
+}
+#detail-paper .paper-table td input[type="number"] { width: 96px; }
+#detail-paper .paper-table td #e-designation { width: 180px; }
+
+/* 概要は本文と同じ組みのまま、内容に合わせて伸びる */
+#detail-paper #e-desc {
+  width: calc(100% + 12px); font-size: 14.5px; line-height: 2;
+  padding: 0 6px; margin: 0 -6px; resize: none; overflow: hidden;
+}
 
 /* 名称は見出しの位置でそのまま書き換える */
 .edit-title {
-  width: 100%; text-align: center;
-  font-family: var(--serif); font-size: 26px; font-weight: 600;
-  letter-spacing: 0.06em; color: var(--ink);
+  display: block; width: calc(100% + 12px); text-align: center;
+  font-family: var(--serif); font-size: 30px; font-weight: 600;
+  letter-spacing: 0.06em; line-height: 1.4;
+  padding: 0 6px; margin: 0 -6px;
+}
+/* 見出しと同じ高さに収めるため、上下の余白は持たせない */
+#detail-paper .edit-title {
+  font-family: var(--serif); font-size: 30px; padding: 0 6px; margin: 0 -6px;
 }
 
 .field-note { color: var(--ink-3); font-size: 11px; margin-left: 8px; }
 .field-note:empty { display: none; }
 
 /* 切り替え用のボタン（輪郭の設定・標高の取得など） */
+/* 諸元の行に置くので、行の高さを押し広げない大きさにする */
 .btn-toggle {
-  padding: 5px 14px; border: 1px solid var(--red); border-radius: 999px;
-  background: var(--paper); color: var(--red); font-family: var(--sans); font-size: 12px;
-  cursor: pointer; letter-spacing: .04em; margin-left: 8px;
+  padding: 0 11px; border: 1px solid var(--red); border-radius: 999px;
+  background: var(--paper); color: var(--red); font-family: var(--sans);
+  font-size: 11px; line-height: 16px;
+  cursor: pointer; letter-spacing: .04em; margin-left: 8px; vertical-align: baseline;
 }
 .btn-toggle:hover { background: var(--red-tint); }
 .btn-toggle.on { background: var(--red); color: #fff; }

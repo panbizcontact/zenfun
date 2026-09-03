@@ -179,6 +179,19 @@
     });
   }
 
+  // 輪郭の内容を一行で言い表す（閲覧・編集で同じ書式を使う）
+  function outlineSummary(outline) {
+    if (!outline) return "未設定";
+    const parts = [];
+    if ((outline.mound || []).length >= 3) parts.push(`墳丘${outline.mound.length}点`);
+    const moats = (outline.moats || [])
+      .filter((m) => (m.outer || []).length >= 3 || (m.inner || []).length >= 3);
+    if (moats.length) parts.push(`周堤${moats.length}`);
+    const lines = (outline.lines || []).filter((l) => l.length >= 2);
+    if (lines.length) parts.push(`線${lines.length}本`);
+    return parts.length ? parts.join(" / ") : "未設定";
+  }
+
   function renderDetail(k) {
     const place = [k.prefecture, k.municipality].filter(Boolean).join(" ");
     document.getElementById("d-eyebrow").textContent = place || "所在地不明";
@@ -195,6 +208,7 @@
       ["築造年代", periodText(k)],
       ["指定", k.designation || "—"],
       ["座標", k.lat.toFixed(5) + ", " + k.lng.toFixed(5)],
+      ["輪郭", outlineSummary(k.outline)],
     ];
     document.getElementById("d-table").innerHTML = rows
       .map(([t, v]) => `<tr><th>${t}</th><td>${escapeHtml(String(v))}</td></tr>`).join("");
@@ -334,6 +348,8 @@
     document.getElementById("detail-paper").classList.toggle("editing", on);
     // 閲覧中だけ鉛筆を出す（未ログインでは出さない）
     document.getElementById("d-edit").style.display = (!on && IS_AUTH) ? "" : "none";
+    // 高さは表示されてからでないと測れないので、切り替えたあとに合わせる
+    if (on) autoGrow(document.getElementById("e-desc"));
   }
 
   // 編集欄に値を入れる。k が null なら新規追加。
@@ -350,6 +366,8 @@
     document.getElementById("e-height-note").textContent = "";
     document.getElementById("e-address").textContent =
       [k.prefecture, k.municipality].filter(Boolean).join(" ") || "—";
+    document.getElementById("e-period").textContent = periodText(k);
+    updateCoordText();
     outlineDraft = {
       mound: (k.outline && k.outline.mound) ? k.outline.mound.slice() : [],
       moats: (k.outline && k.outline.moats)
@@ -359,7 +377,33 @@
     };
     outlineActiveTarget = "mound";
     updateOutlineStatus();
+    updateByline();
   }
+
+  function updateCoordText() {
+    const lat = parseFloat(val("e-lat"));
+    const lng = parseFloat(val("e-lng"));
+    document.getElementById("e-coord").textContent =
+      isNaN(lat) || isNaN(lng) ? "—" : lat.toFixed(5) + ", " + lng.toFixed(5);
+  }
+
+  // 形状・指定を書き換えたら、見出し下の肩書きもその場で追従させる
+  function updateByline() {
+    const shape = val("e-shape");
+    document.getElementById("d-byline").textContent =
+      [shape ? SHAPES[shape] : "", val("e-designation")].filter(Boolean).join("　／　");
+  }
+  ["e-shape", "e-designation"].forEach((id) => {
+    document.getElementById(id).addEventListener("input", updateByline);
+    document.getElementById(id).addEventListener("change", updateByline);
+  });
+
+  // 概要は枠のない本文として書くので、中身に合わせて高さを伸ばす
+  function autoGrow(ta) {
+    ta.style.height = "0px";       // auto だと行数ぶんの下限が残り、本文より高くなる
+    ta.style.height = ta.scrollHeight + "px";
+  }
+  document.getElementById("e-desc").addEventListener("input", (e) => autoGrow(e.target));
 
   // 鉛筆アイコン: 表示中の古墳をその場で編集に切り替える
   document.getElementById("d-edit").onclick = () => {
@@ -376,6 +420,7 @@
     const c = map.getCenter();
     fillEditor({ lat: c.lat.toFixed(6), lng: c.lng.toFixed(6) });
     document.getElementById("d-eyebrow").textContent = "新規登録";
+    document.getElementById("d-kana").textContent = "";
     document.getElementById("detail-paper").classList.add("is-new");
     setEditing(true);
     document.getElementById("detail-overlay").classList.add("open");
@@ -384,7 +429,7 @@
 
   document.getElementById("e-cancel").onclick = () => {
     exitOutlineDrawMode();
-    if (currentKofun) { renderDetail(currentKofun); setEditing(false); }
+    if (currentKofun) { renderDetail(currentKofun); setEditing(false); }  // 肩書きも元に戻る
     else { closeDetail(); }
   };
 
@@ -724,6 +769,7 @@
       const lng = outlineDraft.mound.reduce((s, p) => s + p[0], 0) / n;
       const lat = outlineDraft.mound.reduce((s, p) => s + p[1], 0) / n;
       setVal("e-lat", lat.toFixed(6)); setVal("e-lng", lng.toFixed(6));
+      updateCoordText();
       refreshAddress();
     }
     updateOutlineStatus();
