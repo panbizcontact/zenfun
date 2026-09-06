@@ -37,6 +37,8 @@ def create_app(config_class=Config):
 
     with app.app_context():
         db.create_all()
+        from .schema_sync import ensure_columns
+        ensure_columns(db)   # 後から足した列を既存のデータベースにも反映する
         from .postgis import ensure_postgis
         # PostgreSQL 接続時のみ実行。postgis 拡張が使えない環境では False が返り、
         # 起動は止めずに緯度経度による範囲検索へフォールバックする。

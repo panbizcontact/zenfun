@@ -61,6 +61,10 @@ class Kofun(db.Model):
     shape = db.Column(db.String(32), default="unknown", index=True)  # KOFUN_SHAPES のキー
     length_m = db.Column(db.Float, index=True)   # 墳丘長(m)。円墳は直径。規模フィルタの基準。
     height_m = db.Column(db.Float)               # 墳丘高(m)
+    # 上の2つが実測値ではなく、Pathの主軸やDEMから機械的に求めた値かどうか。
+    # 真のときは詳細画面に注意マークを添えて、実測値でないことを断る。
+    length_is_estimated = db.Column(db.Boolean, default=False)
+    height_is_estimated = db.Column(db.Boolean, default=False)
     # 方角: 前方後円墳などで「前方部が向く方位」を度で保持(0=北, 90=東)。
     orientation_deg = db.Column(db.Float, default=0.0)
 
@@ -111,6 +115,8 @@ class Kofun(db.Model):
             "shape_ja": self.shape_ja(),
             "length_m": self.length_m,
             "height_m": self.height_m,
+            "length_estimated": bool(self.length_is_estimated),
+            "height_estimated": bool(self.height_is_estimated),
             "orientation_deg": self.orientation_deg or 0.0,
             "period": self.period,
             "year_from": self.year_from,

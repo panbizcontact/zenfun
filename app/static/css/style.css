@@ -222,6 +222,7 @@ a { color: var(--red); }
 .paper-kana { margin: 8px 0 0; font-size: 12px; letter-spacing: 0.14em; color: var(--ink-3); }
 .paper-byline { margin: 12px 0 0; font-size: 12px; color: var(--ink-2); }
 .byline-sep { margin: 0 10px; color: var(--ink-3); }
+#detail-paper #e-desig { width: 150px; font-size: 12px; color: var(--ink-2); text-align: center; }
 #detail-paper #e-shape {
   font-family: var(--sans); font-size: 12px; color: var(--ink-2);
   padding: 0 18px 0 6px; margin: 0 -6px; background-position: right 4px center;
@@ -311,6 +312,41 @@ a { color: var(--red); }
   letter-spacing: 0.1em;
 }
 .auto-value { color: var(--ink-2); }
+
+/* ── 築造年代の時間軸 ── */
+.timeline { padding: 2px 0 1px; }
+.tl-track {
+  position: relative; height: 20px; border: 1px solid var(--rule);
+  border-radius: 2px; overflow: hidden; background: var(--paper-2);
+}
+.timeline.editable .tl-track { cursor: crosshair; }
+.tl-band {
+  position: absolute; top: 0; bottom: 0;
+  border-right: 1px solid var(--rule);
+  display: flex; align-items: center; justify-content: center;
+}
+.tl-band:last-of-type { border-right: none; }
+.tl-band span { font-size: 9px; letter-spacing: .04em; color: var(--ink-3); }
+.tl-range {
+  position: absolute; top: 0; bottom: 0; background: var(--red); opacity: .68;
+}
+.tl-mark { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--red); }
+.tl-mark.pending { opacity: .55; }
+.tl-scale { position: relative; height: 13px; margin-top: 2px; }
+.tl-scale span {
+  position: absolute; top: 0; transform: translateX(-50%);
+  font-size: 9px; color: var(--ink-3);
+}
+.tl-scale span.tl-first { transform: none; }
+.tl-scale span.tl-last { transform: translateX(-100%); }
+.tl-caption { font-size: 12px; color: var(--ink); margin-top: 1px; }
+
+/* 実測値でない値に添える注意マーク */
+.est-mark { color: var(--red); font-size: 12px; margin-left: 4px; cursor: help; }
+.est-note {
+  margin: 10px 0 0; font-size: 11px; line-height: 1.8; color: var(--ink-3);
+}
+.est-note:empty { display: none; }
 
 /* 編集欄は枠を持たず、閲覧時と同じ字面・同じ行の高さのまま書き換えられるようにする */
 #detail-paper input, #detail-paper select, #detail-paper textarea {

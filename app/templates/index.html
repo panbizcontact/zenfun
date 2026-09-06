@@ -113,7 +113,16 @@
         <select id="e-shape" aria-label="形状">
           <option value="">形状を選ぶ</option>
           {% for key, name in shapes.items() %}<option value="{{ key }}">{{ name }}</option>{% endfor %}
-        </select><span class="byline-sep">／</span><span id="e-byline-designation"></span>
+        </select><span class="byline-sep">／</span><input id="e-desig" list="desig-options"
+               placeholder="指定" aria-label="指定" autocomplete="off" spellcheck="false">
+        <datalist id="desig-options">
+          <option value="国特別史跡"></option>
+          <option value="国史跡"></option>
+          <option value="県史跡"></option>
+          <option value="市史跡"></option>
+          <option value="町史跡"></option>
+          <option value="指定なし"></option>
+        </datalist>
       </p>
     </header>
 
@@ -121,9 +130,9 @@
       <h2 class="paper-h2">諸元</h2>
       <table class="paper-table view-field"><tbody id="d-table"></tbody></table>
       <table class="paper-table edit-field"><tbody>
-        <tr><th>所在地</th><td><span id="e-address" class="auto-value">—</span></td></tr>
         <tr><th>墳丘長</th><td>
           <input id="e-length" type="number" step="any" placeholder="—" autocomplete="off">
+          <button type="button" id="e-length-btn" class="btn-toggle subtle">Pathの主軸から求める</button>
           <span class="field-note" id="e-length-note"></span>
         </td></tr>
         <tr><th>墳丘高</th><td>
@@ -131,29 +140,14 @@
           <button type="button" id="e-height-btn" class="btn-toggle subtle">標高から求める</button>
           <span class="field-note" id="e-height-note"></span>
         </td></tr>
-        <tr><th>築造年代</th><td>
-          <input id="e-period" placeholder="400〜500" inputmode="numeric"
-                 aria-label="築造年代（数字と〜のみ）" autocomplete="off">
-          <span class="field-note" id="e-period-note"></span>
-        </td></tr>
-        <tr><th>指定</th><td>
-          <input id="e-desig" list="desig-options" placeholder="国史跡 など"
-                 aria-label="指定" autocomplete="off" spellcheck="false">
-          <datalist id="desig-options">
-            <option value="国特別史跡"></option>
-            <option value="国史跡"></option>
-            <option value="県史跡"></option>
-            <option value="市史跡"></option>
-            <option value="町史跡"></option>
-            <option value="指定なし"></option>
-          </datalist>
-        </td></tr>
+        <tr><th>築造年代</th><td><div class="timeline editable" id="e-timeline"></div></td></tr>
         <tr><th>座標</th><td><span id="e-coord" class="auto-value">—</span></td></tr>
         <tr><th>Path</th><td>
           <span id="e-outline-status" class="auto-value">未設定</span>
           <button type="button" id="e-outline-btn" class="btn-toggle">Pathを設定する</button>
         </td></tr>
       </tbody></table>
+      <p class="est-note" id="d-est-note"></p>
     </section>
 
     <section class="paper-section" id="d-desc-section">

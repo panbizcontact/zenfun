@@ -193,6 +193,20 @@
     return parts.length ? parts.join(" / ") : "未設定";
   }
 
+  // 実測値でない値についての断り書き。閲覧・編集のどちらでも同じ位置に出す。
+  const EST_WHY = {
+    length: "Pathの主軸から自動計算した値です。実測値ではありません。",
+    height: "国土地理院の標高から求めた概算値です。実測値ではありません。",
+  };
+
+  function renderEstNote(lengthEst, heightEst) {
+    const notes = [];
+    if (lengthEst) notes.push(EST_WHY.length);
+    if (heightEst) notes.push(EST_WHY.height);
+    document.getElementById("d-est-note").innerHTML =
+      notes.map((n) => `⚠ ${escapeHtml(n)}`).join("<br>");
+  }
+
   function renderDetail(k) {
     const place = [k.prefecture, k.municipality].filter(Boolean).join(" ");
     document.getElementById("d-eyebrow").textContent = place || "所在地不明";
@@ -201,17 +215,28 @@
     document.getElementById("d-byline").textContent =
       [k.shape_ja, k.designation].filter(Boolean).join("　／　");
 
+    // 実測値でない項目には注意マークを添え、表の下でその旨を断る
+    const lengthEst = k.length_estimated && k.length_m != null;
+    const heightEst = k.height_estimated && k.height_m != null;
+    function sized(value, unit, estimated, why) {
+      if (value == null || value === "") return "—";
+      const text = escapeHtml(String(value)) + " " + unit;
+      if (!estimated) return text;
+      return text + ` <span class="est-mark" title="${escapeHtml(why)}">⚠</span>`;
+    }
+
     const rows = [
-      ["所在地", place || "—"],
-      ["墳丘長", k.length_m ? k.length_m + " m" : "—"],
-      ["墳丘高", k.height_m ? k.height_m + " m" : "—"],
-      ["築造年代", periodText(k)],
-      ["指定", k.designation || "—"],
-      ["座標", k.lat.toFixed(5) + ", " + k.lng.toFixed(5)],
-      ["Path", outlineSummary(k.outline)],
+      ["墳丘長", sized(k.length_m, "m", lengthEst, EST_WHY.length)],
+      ["墳丘高", sized(k.height_m, "m", heightEst, EST_WHY.height)],
+      ["築造年代", '<div class="timeline" id="d-timeline"></div>'],
+      ["座標", escapeHtml(k.lat.toFixed(5) + ", " + k.lng.toFixed(5))],
+      ["Path", escapeHtml(outlineSummary(k.outline))],
     ];
     document.getElementById("d-table").innerHTML = rows
-      .map(([t, v]) => `<tr><th>${t}</th><td>${escapeHtml(String(v))}</td></tr>`).join("");
+      .map(([t, v]) => `<tr><th>${t}</th><td>${v}</td></tr>`).join("");
+    renderTimeline(document.getElementById("d-timeline"), k.year_from, k.year_to, null);
+
+    renderEstNote(lengthEst, heightEst);
 
     document.getElementById("d-desc").textContent = k.description || "";
     document.getElementById("d-desc-section").style.display = k.description ? "" : "none";
@@ -373,9 +398,13 @@
     setVal("e-lat", k.lat); setVal("e-lng", k.lng);
     setVal("e-pref", k.prefecture); setVal("e-muni", k.municipality);
     document.getElementById("e-height-note").textContent = "";
-    document.getElementById("e-address").textContent =
-      [k.prefecture, k.municipality].filter(Boolean).join(" ") || "—";
-    setVal("e-period", yearRangeText(k));
+    document.getElementById("e-length-note").textContent = "";
+    lengthEstimated = !!k.length_estimated;
+    heightEstimated = !!k.height_estimated;
+    syncEstNote();
+    timeline = { from: k.year_from != null ? k.year_from : null,
+                 to: k.year_to != null ? k.year_to : null, pending: null };
+    drawEditTimeline();
     updateCoordText();
     outlineDraft = {
       mound: (k.outline && k.outline.mound) ? k.outline.mound.slice() : [],
@@ -386,36 +415,74 @@
     };
     outlineActiveTarget = "mound";
     updateOutlineStatus();
-    updateByline();
   }
 
-  // 築造年代の入力は「400〜500」「690」のように数字と〜だけを受け付ける
-  const periodInput = document.getElementById("e-period");
-  periodInput.addEventListener("input", () => {
-    const cleaned = periodInput.value.replace(/[~～]/g, "〜").replace(/[^0-9〜]/g, "");
-    if (cleaned !== periodInput.value) {
-      const at = periodInput.selectionStart - (periodInput.value.length - cleaned.length);
-      periodInput.value = cleaned;
-      periodInput.setSelectionRange(at, at);
+  // ── 築造年代: 数字ではなく時間軸で示し、編集では2点をたたいて範囲を決める ──
+  const TL_MIN = 200, TL_MAX = 750, TL_STEP = 10;
+  const TL_TICKS = [200, 300, 400, 500, 600, 700];
+  let timeline = { from: null, to: null, pending: null };
+
+  function tlPct(year) {
+    const t = (Math.min(Math.max(year, TL_MIN), TL_MAX) - TL_MIN) / (TL_MAX - TL_MIN);
+    return t * 100;
+  }
+
+  function tlCaption(from, to, pending) {
+    if (pending != null) return `${pending}年 — もう一点たたくと範囲が決まります`;
+    if (from == null && to == null) return "未設定";
+    const years = from != null && to != null && from !== to
+      ? `${fmtYear(from)}〜${fmtYear(to)}年` : `${fmtYear(from != null ? from : to)}年ごろ`;
+    return `古墳時代${periodOf(from != null ? from : to)}　${years}`;
+  }
+
+  function renderTimeline(el, from, to, pending) {
+    if (!el) return;
+    const bands = PERIOD_BANDS.map(([a, b, name]) =>
+      `<div class="tl-band" style="left:${tlPct(a)}%;width:${tlPct(b) - tlPct(a)}%">` +
+      `<span>${name}</span></div>`).join("");
+    let marks = "";
+    if (from != null && to != null) {
+      const a = Math.min(from, to), b = Math.max(from, to);
+      marks += `<div class="tl-range" style="left:${tlPct(a)}%;` +
+               `width:${Math.max(tlPct(b) - tlPct(a), 0.8)}%"></div>`;
+    } else if (from != null) {
+      marks += `<div class="tl-mark" style="left:${tlPct(from)}%"></div>`;
     }
-    document.getElementById("e-period-note").textContent =
-      parseYearRange(periodInput.value) ? "" : "数字と〜だけで入力してください";
+    if (pending != null) marks += `<div class="tl-mark pending" style="left:${tlPct(pending)}%"></div>`;
+    // 両端の目盛りは、中央寄せのままだと軌道からはみ出すので寄せ方を変える
+    const scale = TL_TICKS.map((y, i) => {
+      const edge = i === 0 ? " tl-first" : (i === TL_TICKS.length - 1 ? " tl-last" : "");
+      return `<span class="${edge.trim()}" style="left:${tlPct(y)}%">${y}</span>`;
+    }).join("");
+    el.innerHTML =
+      `<div class="tl-track">${bands}${marks}</div>` +
+      `<div class="tl-scale">${scale}</div>` +
+      `<div class="tl-caption">${escapeHtml(tlCaption(from, to, pending))}</div>`;
+  }
+
+  function drawEditTimeline() {
+    renderTimeline(document.getElementById("e-timeline"),
+                   timeline.from, timeline.to, timeline.pending);
+  }
+
+  // 軌道をたたいた位置から年を読む（10年きざみ）
+  document.getElementById("e-timeline").addEventListener("click", (e) => {
+    const track = e.target.closest(".tl-track")
+      || document.querySelector("#e-timeline .tl-track");
+    if (!track) return;
+    const r = track.getBoundingClientRect();
+    if (!r.width) return;
+    const raw = TL_MIN + ((e.clientX - r.left) / r.width) * (TL_MAX - TL_MIN);
+    const year = Math.min(Math.max(Math.round(raw / TL_STEP) * TL_STEP, TL_MIN), TL_MAX);
+    if (timeline.pending == null) {
+      // 1点目。前の範囲はいったん外して、選び直しであることを分かるようにする
+      timeline = { from: null, to: null, pending: year };
+    } else {
+      timeline = { from: Math.min(timeline.pending, year),
+                   to: Math.max(timeline.pending, year), pending: null };
+    }
+    drawEditTimeline();
   });
-
-  function yearRangeText(k) {
-    if (k.year_from == null && k.year_to == null) return "";
-    return [k.year_from, k.year_to].filter((y) => y != null).join("〜");
-  }
-
-  // "400〜500" → {from:400, to:500} / "690" → {from:690, to:null} / 空 → 両方 null
-  // 解釈できない書き方のときは null を返す
-  function parseYearRange(text) {
-    const t = (text || "").trim();
-    if (!t) return { from: null, to: null };
-    const m = t.match(/^(\d+)(?:〜(\d+)?)?$/);
-    if (!m) return null;
-    return { from: parseInt(m[1], 10), to: m[2] ? parseInt(m[2], 10) : null };
-  }
 
   function updateCoordText() {
     const lat = parseFloat(val("e-lat"));
@@ -423,15 +490,6 @@
     document.getElementById("e-coord").textContent =
       isNaN(lat) || isNaN(lng) ? "—" : lat.toFixed(5) + ", " + lng.toFixed(5);
   }
-
-  // 形状・指定を書き換えたら、見出し下の肩書きもその場で追従させる
-  function updateByline() {
-    document.getElementById("e-byline-designation").textContent = val("e-desig") || "";
-  }
-  ["e-desig"].forEach((id) => {
-    document.getElementById(id).addEventListener("input", updateByline);
-    document.getElementById(id).addEventListener("change", updateByline);
-  });
 
   // 概要は枠のない本文として書くので、中身に合わせて高さを伸ばす
   function autoGrow(ta) {
@@ -476,8 +534,9 @@
     const name = (val("e-title") || "").trim();
     const shape = val("e-shape") || "";
     const designation = (val("e-desig") || "").trim();
-    const years = parseYearRange(val("e-period"));
-    if (!years) { flash("築造年代は「400〜500」のように数字と〜で入力してください。", "error"); return; }
+    if (timeline.pending != null) {
+      flash("築造年代は、時間軸をもう一点たたいて範囲を決めてください。", "error"); return;
+    }
     const missing = [];
     if (!name) missing.push("名称");
     if (!shape) missing.push("形状");
@@ -513,7 +572,9 @@
       latitude: val("e-lat"), longitude: val("e-lng"),
       prefecture: val("e-pref"), municipality: val("e-muni"),
       shape: shape, length_m: val("e-length"), height_m: val("e-height"),
-      year_from: years.from, year_to: years.to,
+      length_is_estimated: val("e-length") ? lengthEstimated : false,
+      height_is_estimated: val("e-height") ? heightEstimated : false,
+      year_from: timeline.from, year_to: timeline.to,
       designation: designation,
       description: val("e-desc"),
       outline_geojson: Object.keys(outlineObj).length ? JSON.stringify(outlineObj) : "",
@@ -537,23 +598,25 @@
   let addressSeq = 0;
 
   function refreshAddress() {
-    const out = document.getElementById("e-address");
+    // 所在地は諸元ではなく、見出しの上（肩の一行）に出している
+    const out = document.getElementById("d-eyebrow");
     const lat = parseFloat(val("e-lat"));
     const lng = parseFloat(val("e-lng"));
     if (isNaN(lat) || isNaN(lng)) {
-      setVal("e-pref", ""); setVal("e-muni", ""); out.textContent = "—"; return;
+      setVal("e-pref", ""); setVal("e-muni", ""); out.textContent = "所在地不明"; return;
     }
     const seq = ++addressSeq;
-    out.textContent = "判定中…";
+    out.textContent = "所在地を判定中…";
     fetch(`/api/reverse-geocode?lat=${lat}&lng=${lng}`)
       .then((r) => r.json())
       .then((d) => {
         if (seq !== addressSeq) return;  // 新しい問い合わせが始まっていれば破棄
         setVal("e-pref", d.prefecture || "");
         setVal("e-muni", d.municipality || "");
-        out.textContent = [d.prefecture, d.municipality].filter(Boolean).join(" ") || "—";
+        out.textContent =
+          [d.prefecture, d.municipality].filter(Boolean).join(" ") || "所在地不明";
       })
-      .catch(() => { if (seq === addressSeq) out.textContent = "—"; });
+      .catch(() => { if (seq === addressSeq) out.textContent = "所在地不明"; });
   }
 
   // ── 墳丘長: 輪郭（墳丘）が描かれていれば、その最大差し渡しを自動計算する ──
@@ -594,20 +657,33 @@
     return max - min;
   }
 
-  // 墳丘のPathがあるときは墳丘長を自動計算し、手入力できないようにする
-  function syncLengthFromOutline() {
-    const input = document.getElementById("e-length");
-    const note = document.getElementById("e-length-note");
-    const mound = outlineDraft.mound;
-    if (mound.length >= 2) {
-      input.value = ringMaxLength(mound).toFixed(1);
-      input.readOnly = true;
-      note.textContent = "Pathの主軸から自動計算";
-    } else {
-      input.readOnly = false;
-      note.textContent = "";
-    }
+  // 墳丘長・墳丘高が機械的に求めた値かどうか。真なら詳細画面で注意マークを添える。
+  let lengthEstimated = false;
+  let heightEstimated = false;
+
+  function syncEstNote() {
+    renderEstNote(lengthEstimated && !!val("e-length"), heightEstimated && !!val("e-height"));
   }
+
+  // 手で書き換えたら、その値はもう推定値ではない
+  ["e-length", "e-height"].forEach((id) => {
+    document.getElementById(id).addEventListener("input", () => {
+      if (id === "e-length") { lengthEstimated = false; }
+      else { heightEstimated = false; }
+      document.getElementById(id + "-note").textContent = "";
+      syncEstNote();
+    });
+  });
+
+  // ボタンを押したときだけ、墳丘のPathの主軸から墳丘長を求める
+  document.getElementById("e-length-btn").addEventListener("click", () => {
+    const note = document.getElementById("e-length-note");
+    if (outlineDraft.mound.length < 2) { note.textContent = "墳丘のPathがありません"; return; }
+    document.getElementById("e-length").value = ringMaxLength(outlineDraft.mound).toFixed(1);
+    lengthEstimated = true;
+    note.textContent = "Pathの主軸から自動計算（推定値）";
+    syncEstNote();
+  });
 
   // ── 墳丘高: 国土地理院の標高から推定する ──
   document.getElementById("e-height-btn").addEventListener("click", () => {
@@ -635,7 +711,9 @@
           return;
         }
         document.getElementById("e-height").value = d.height_m;
-        note.textContent = `墳頂 ${d.summit_m}m − 周囲 ${d.base_m}m（DEMによる概算）`;
+        heightEstimated = true;
+        note.textContent = `墳頂 ${d.summit_m}m − 周囲 ${d.base_m}m（推定値）`;
+        syncEstNote();
       })
       .catch(() => { note.textContent = "標高を取得できませんでした"; });
   });
@@ -671,7 +749,6 @@
       parts.length ? parts.join(" / ") : "未設定";
     document.getElementById("e-outline-btn").textContent =
       parts.length ? "Pathを編集する" : "Pathを設定する";
-    syncLengthFromOutline();   // 墳丘のPathから墳丘長を引き直す
   }
 
   function updateOutlineDraftLayer() {
@@ -1066,19 +1143,14 @@
   }
   // 築造年代の「期」は、記録された年から機械的に決める
   // （〜299 出現期 / 300〜399 前期 / 400〜499 中期 / 500〜599 後期 / 600〜 終末期）
-  const PERIOD_BANDS = [[300, "出現期"], [400, "前期"], [500, "中期"], [600, "後期"]];
+  const PERIOD_BANDS = [
+    [TL_MIN, 300, "出現期"], [300, 400, "前期"], [400, 500, "中期"],
+    [500, 600, "後期"], [600, TL_MAX, "終末期"],
+  ];
 
   function periodOf(year) {
-    for (const [upto, name] of PERIOD_BANDS) if (year < upto) return name;
+    for (const [, upto, name] of PERIOD_BANDS) if (year < upto) return name;
     return "終末期";
-  }
-
-  function periodText(k) {
-    const base = k.year_from != null ? k.year_from : k.year_to;
-    if (base == null) return k.period || "—";
-    const f = k.year_from != null ? fmtYear(k.year_from) : "";
-    const t = k.year_to != null ? fmtYear(k.year_to) : "";
-    return periodOf(base) + " " + [f, t].filter(Boolean).join("〜");
   }
   function fmtYear(y) { return y < 0 ? "前" + (-y) : y + ""; }
 

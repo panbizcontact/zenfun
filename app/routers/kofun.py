@@ -18,12 +18,14 @@ bp = Blueprint("kofun", __name__, url_prefix="/api/kofun")
 EDITABLE_FIELDS = [
     "name", "name_kana", "aliases", "latitude", "longitude",
     "prefecture", "municipality", "shape", "length_m", "height_m",
+    "length_is_estimated", "height_is_estimated",
     "orientation_deg", "period", "year_from", "year_to",
     "description", "designation", "source_url", "outline_geojson",
 ]
 
 FLOAT_FIELDS = {"latitude", "longitude", "length_m", "height_m", "orientation_deg"}
 INT_FIELDS = {"year_from", "year_to"}
+BOOL_FIELDS = {"length_is_estimated", "height_is_estimated"}
 
 WRITE_RATE_LIMIT = "30 per hour"
 
@@ -92,6 +94,8 @@ def _coerce(field, value):
         return None
     if field in FLOAT_FIELDS:
         return float(value)
+    if field in BOOL_FIELDS:
+        return bool(value)
     if field in INT_FIELDS:
         return int(value)
     if field == "outline_geojson":
