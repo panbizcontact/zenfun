@@ -253,6 +253,7 @@
 
   function closeDetail() {
     document.getElementById("detail-overlay").classList.remove("open");
+    document.getElementById("timeline-overlay").classList.remove("open");
     setEditing(false);
     exitOutlineDrawMode();
   }
@@ -420,6 +421,7 @@
   // ── 築造年代: 数字ではなく時間軸で示し、編集では2点をたたいて範囲を決める ──
   const TL_MIN = 200, TL_MAX = 750, TL_STEP = 10;
   const TL_TICKS = [200, 300, 400, 500, 600, 700];
+  const TL_TICKS_LARGE = [200, 250, 300, 350, 400, 450, 500, 550, 600, 650, 700, 750];
   let timeline = { from: null, to: null, pending: null };
 
   function tlPct(year) {
@@ -427,17 +429,27 @@
     return t * 100;
   }
 
-  // 選ばれた範囲は、帯の「〇〇期」と目盛りの数字を濃くすることで示す
-  function renderTimeline(el, from, to, pending) {
+  // 目盛りが軌道からはみ出さないよう、両端だけ寄せ方を変える
+  function tlEdgeClass(pct) {
+    if (pct < 4) return "tl-first";
+    if (pct > 96) return "tl-last";
+    return "";
+  }
+
+  // 選ばれた範囲は、帯の「〇〇期」と目盛りの数字を濃くすることで示し、
+  // 範囲の両端の年は軌道の下に出す。
+  function renderTimeline(el, from, to, pending, ticks) {
     if (!el) return;
     const has = from != null || to != null;
     const a = has ? Math.min(from != null ? from : to, to != null ? to : from) : null;
     const b = has ? Math.max(from != null ? from : to, to != null ? to : from) : null;
 
-    const bands = PERIOD_BANDS.map(([s0, s1, name]) => {
+    const bands = PERIOD_BANDS.map(([s0, s1, name], i) => {
       // 範囲にかかる期を濃くする（点のときはその点を含む期）
       const on = has && (a === b ? (s0 <= a && a < s1) : (s1 > a && s0 < b));
-      return `<div class="tl-band${on ? " on" : ""}" ` +
+      // 仕切り線は隣り合う帯の左側だけに引く（右に引くと軌道の枠と重なる）
+      const cls = ["tl-band", i ? "tl-sep" : "", on ? "on" : ""].filter(Boolean).join(" ");
+      return `<div class="${cls}" ` +
         `style="left:${tlPct(s0)}%;width:${tlPct(s1) - tlPct(s0)}%"><span>${name}</span></div>`;
     }).join("");
 
@@ -450,14 +462,30 @@
     }
     if (pending != null) marks += `<div class="tl-mark pending" style="left:${tlPct(pending)}%"></div>`;
 
-    // 両端の目盛りは、中央寄せのままだと軌道からはみ出すので寄せ方を変える
-    const scale = TL_TICKS.map((y, i) => {
-      const cls = [];
-      if (i === 0) cls.push("tl-first");
-      if (i === TL_TICKS.length - 1) cls.push("tl-last");
-      if (has && y >= a && y <= b) cls.push("on");
-      return `<span class="${cls.join(" ")}" style="left:${tlPct(y)}%">${y}</span>`;
-    }).join("");
+    // 選んだ範囲の年は軌道の下に出す。両端が近いときは一つにまとめ、
+    // 重なってしまう目盛りは控える。
+    let picks = [];
+    if (has && a === b) {
+      picks = [{ pct: tlPct(a), text: fmtYear(a), room: 5 }];
+    } else if (has && tlPct(b) - tlPct(a) < 10) {
+      picks = [{ pct: (tlPct(a) + tlPct(b)) / 2,
+                 text: `${fmtYear(a)}〜${fmtYear(b)}`, room: 10 }];
+    } else if (has) {
+      picks = [{ pct: tlPct(a), text: fmtYear(a), room: 5 },
+               { pct: tlPct(b), text: fmtYear(b), room: 5 }];
+    }
+    const scale = (ticks || TL_TICKS)
+      .filter((y) => !picks.some((p) => Math.abs(tlPct(y) - p.pct) < p.room))
+      .map((y) => {
+        const cls = [tlEdgeClass(tlPct(y)), (has && y >= a && y <= b) ? "on" : ""]
+          .filter(Boolean).join(" ");
+        return `<span class="${cls}" style="left:${tlPct(y)}%">${y}</span>`;
+      })
+      .concat(picks.map((p) => {
+        const cls = ["tl-pick", tlEdgeClass(p.pct)].filter(Boolean).join(" ");
+        return `<span class="${cls}" style="left:${p.pct}%">${p.text}</span>`;
+      }))
+      .join("");
 
     // 何も決まっていないときだけ、その旨を小さく添える
     const caption = (!has && pending == null)
@@ -472,10 +500,33 @@
                    timeline.from, timeline.to, timeline.pending);
   }
 
-  // 軌道をたたいた位置から年を読む（10年きざみ）
-  document.getElementById("e-timeline").addEventListener("click", (e) => {
+  // 諸元の中の軌道は小さくて狙いにくいので、たたくと拡大画面を開く
+  document.getElementById("e-timeline").addEventListener("click", openTimelineEditor);
+
+  function drawBigTimeline() {
+    renderTimeline(document.getElementById("big-timeline"),
+                   timeline.from, timeline.to, timeline.pending, TL_TICKS_LARGE);
+  }
+
+  function openTimelineEditor() {
+    drawBigTimeline();
+    document.getElementById("timeline-overlay").classList.add("open");
+  }
+
+  function closeTimelineEditor() {
+    document.getElementById("timeline-overlay").classList.remove("open");
+    drawEditTimeline();
+  }
+
+  document.getElementById("tl-done").addEventListener("click", closeTimelineEditor);
+  document.getElementById("timeline-overlay").addEventListener("click", (e) => {
+    if (e.target.id === "timeline-overlay") closeTimelineEditor();
+  });
+
+  // 拡大画面の軌道をたたいた位置から年を読む（10年きざみ）
+  document.getElementById("big-timeline").addEventListener("click", (e) => {
     const track = e.target.closest(".tl-track")
-      || document.querySelector("#e-timeline .tl-track");
+      || document.querySelector("#big-timeline .tl-track");
     if (!track) return;
     const r = track.getBoundingClientRect();
     if (!r.width) return;
@@ -488,7 +539,7 @@
       timeline = { from: Math.min(timeline.pending, year),
                    to: Math.max(timeline.pending, year), pending: null };
     }
-    drawEditTimeline();
+    drawBigTimeline();
   });
 
   function updateCoordText() {
@@ -531,6 +582,7 @@
   }
 
   document.getElementById("e-cancel").onclick = () => {
+    document.getElementById("timeline-overlay").classList.remove("open");
     exitOutlineDrawMode();
     if (currentKofun) { renderDetail(currentKofun); setEditing(false); }  // 肩書きも元に戻る
     else { closeDetail(); }

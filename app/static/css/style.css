@@ -322,10 +322,10 @@ a { color: var(--red); }
 .timeline.editable .tl-track { cursor: crosshair; }
 .tl-band {
   position: absolute; top: 0; bottom: 0; z-index: 1;   /* 期の名は範囲の帯より前に出す */
-  border-right: 1px solid var(--rule);
   display: flex; align-items: center; justify-content: center;
 }
-.tl-band:last-of-type { border-right: none; }
+/* 仕切りは隣り合う帯の左側だけ。右に引くと軌道の枠と二重になる */
+.tl-band.tl-sep { border-left: 1px solid var(--rule); }
 .tl-band span { font-size: 9px; letter-spacing: .04em; color: var(--ink-3); }
 /* 選ばれた範囲にかかる期と目盛りは濃く出す */
 .tl-band.on span { color: var(--ink); font-weight: 600; }
@@ -346,7 +346,38 @@ a { color: var(--red); }
 }
 .tl-scale span.tl-first { transform: none; }
 .tl-scale span.tl-last { transform: translateX(-100%); }
+/* 選んだ範囲の両端の年 */
+.tl-scale span.tl-pick { color: var(--red); font-weight: 600; }
 .tl-caption { font-size: 11px; color: var(--ink-3); margin-top: 1px; }
+
+/* 築造年代を大きく扱う画面 */
+#timeline-overlay {
+  position: fixed; inset: 0; z-index: 1600;
+  background: rgba(23, 20, 18, 0.42);
+  display: none; align-items: center; justify-content: center; padding: 20px;
+}
+#timeline-overlay.open { display: flex; }
+.tl-panel {
+  width: 100%; max-width: 720px; background: var(--paper);
+  border-top: 3px solid var(--red); box-shadow: var(--shadow);
+  padding: 26px 30px 22px;
+}
+.tl-panel-head {
+  margin: 0 0 18px; font-family: var(--serif); font-size: 15px; font-weight: 600;
+  letter-spacing: 0.18em; color: var(--ink);
+  padding-bottom: 7px; border-bottom: 1px solid var(--rule);
+}
+.tl-panel-note { margin: 16px 0 0; font-size: 12px; color: var(--ink-3); }
+.tl-panel-actions {
+  margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--rule);
+  display: flex; justify-content: flex-end;
+}
+
+.timeline.large .tl-track { height: 46px; }
+.timeline.large .tl-band span { font-size: 13px; letter-spacing: .1em; }
+.timeline.large .tl-scale { height: 18px; margin-top: 5px; }
+.timeline.large .tl-scale span { font-size: 11px; }
+.timeline.large .tl-mark { width: 3px; }
 
 /* 実測値でない値に添える注意マーク */
 .est-mark { color: var(--red); font-size: 12px; margin-left: 4px; cursor: help; }
