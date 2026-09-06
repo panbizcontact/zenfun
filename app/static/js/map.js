@@ -173,7 +173,10 @@
       renderDetail(k);
       setEditing(false);
       document.getElementById("detail-paper").classList.remove("is-new");
-      document.getElementById("detail-overlay").classList.add("open");
+      const overlay = document.getElementById("detail-overlay");
+      const wasOpen = overlay.classList.contains("open");
+      overlay.classList.add("open");
+      if (!wasOpen) playPaperAnim("anim-open");
     });
   }
 
@@ -200,7 +203,6 @@
 
     const rows = [
       ["所在地", place || "—"],
-      ["形状", k.shape_ja || "—"],
       ["墳丘長", k.length_m ? k.length_m + " m" : "—"],
       ["墳丘高", k.height_m ? k.height_m + " m" : "—"],
       ["築造年代", periodText(k)],
@@ -328,8 +330,30 @@
     return document.getElementById("detail-paper").classList.contains("editing");
   }
 
-  function setEditing(on) {
-    document.getElementById("detail-paper").classList.toggle("editing", on);
+  // 紙の動き。クラスを付け外しして一度だけ動かす
+  function playPaperAnim(name) {
+    const paper = document.getElementById("detail-paper");
+    paper.classList.remove("anim-open", "anim-edit");
+    void paper.offsetWidth;         // 続けて呼んでも必ず出し直す
+    paper.classList.add(name);
+  }
+
+  // 閲覧と編集の切り替わりが分かるように、赤の幕をひと呼吸だけ差す
+  function flashEditVeil() {
+    const veil = document.getElementById("edit-veil");
+    veil.classList.remove("flash");
+    void veil.offsetWidth;
+    veil.classList.add("flash");
+  }
+
+  // flash: 閲覧から編集へ切り替わるときだけ赤の幕を差す（新規追加では出さない）
+  function setEditing(on, flash) {
+    const paper = document.getElementById("detail-paper");
+    if (on && flash !== false && !paper.classList.contains("editing")) {
+      flashEditVeil();
+      playPaperAnim("anim-edit");
+    }
+    paper.classList.toggle("editing", on);
     // 閲覧中だけ鉛筆を出す（未ログインでは出さない）
     document.getElementById("d-edit").style.display = (!on && IS_AUTH) ? "" : "none";
     // 高さは表示されてからでないと測れないので、切り替えたあとに合わせる
@@ -339,10 +363,10 @@
   // 編集欄に値を入れる。k が null なら新規追加。
   function fillEditor(k) {
     k = k || {};
-    setVal("e-name", k.name);
+    setVal("e-title", k.name);
     setVal("e-kana", k.name_kana);
     setVal("e-shape", k.shape || "");
-    setVal("e-designation", k.designation);
+    setVal("e-desig", k.designation);
     setVal("e-length", k.length_m);
     setVal("e-height", k.height_m);
     setVal("e-desc", k.description);
@@ -402,11 +426,9 @@
 
   // 形状・指定を書き換えたら、見出し下の肩書きもその場で追従させる
   function updateByline() {
-    const shape = val("e-shape");
-    document.getElementById("d-byline").textContent =
-      [shape ? SHAPES[shape] : "", val("e-designation")].filter(Boolean).join("　／　");
+    document.getElementById("e-byline-designation").textContent = val("e-desig") || "";
   }
-  ["e-shape", "e-designation"].forEach((id) => {
+  ["e-desig"].forEach((id) => {
     document.getElementById(id).addEventListener("input", updateByline);
     document.getElementById(id).addEventListener("change", updateByline);
   });
@@ -435,8 +457,11 @@
     document.getElementById("d-eyebrow").textContent = "新規登録";
     document.getElementById("d-kana").textContent = "";
     document.getElementById("detail-paper").classList.add("is-new");
-    setEditing(true);
-    document.getElementById("detail-overlay").classList.add("open");
+    setEditing(true, false);
+    const overlay = document.getElementById("detail-overlay");
+    const wasOpen = overlay.classList.contains("open");
+    overlay.classList.add("open");
+    if (!wasOpen) playPaperAnim("anim-open");
     refreshAddress();   // 地図中心の行政区画を裏で引いておく
   }
 
@@ -448,16 +473,16 @@
 
   document.getElementById("e-save").onclick = async () => {
     // val() は空欄のとき null を返すので、必ず文字列に均してから判定する
-    const name = (val("e-name") || "").trim();
+    const name = (val("e-title") || "").trim();
     const shape = val("e-shape") || "";
-    const designation = (val("e-designation") || "").trim();
+    const designation = (val("e-desig") || "").trim();
     const years = parseYearRange(val("e-period"));
     if (!years) { flash("築造年代は「400〜500」のように数字と〜で入力してください。", "error"); return; }
     const missing = [];
     if (!name) missing.push("名称");
     if (!shape) missing.push("形状");
     if (!designation) missing.push("指定");
-    if (missing.length) { flash(missing.join("・") + "を入力してください。", "error"); return; }
+    if (missing.length) { flash(missing.join("・") + "が未記入です。", "error"); return; }
 
     // 行政区画がまだ解決できていなければ、保存前に取得を待つ
     if (!val("e-pref") && val("e-lat") && val("e-lng")) {

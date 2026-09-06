@@ -154,7 +154,44 @@ a { color: var(--red); }
   display: none; align-items: flex-start; justify-content: center;
   padding: 40px 20px; overflow-y: auto;
 }
-#detail-overlay.open { display: flex; }
+#detail-overlay.open { display: flex; animation: overlay-in .2s ease-out; }
+/* 動きは一度きりなので、JS が付け外しするクラスで出す
+   （.open に紐づけると、編集の切り替えのたびに開く動きが出てしまう） */
+.paper.anim-open { animation: paper-in .34s cubic-bezier(.2, .8, .25, 1); }
+.paper.anim-edit { animation: edit-settle .5s ease-out; }
+@keyframes overlay-in {
+  from { background-color: rgba(23, 20, 18, 0); }
+  to   { background-color: rgba(23, 20, 18, 0.42); }
+}
+@keyframes paper-in {
+  from { opacity: 0; transform: translateY(16px) scale(.985); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* 編集へ移るときに一瞬だけ差す赤の幕 */
+#edit-veil {
+  position: fixed; inset: 0; z-index: 2000; pointer-events: none;
+  background: var(--red); opacity: 0;
+}
+#edit-veil.flash { animation: edit-veil .5s ease-out; }
+@keyframes edit-veil {
+  0%   { opacity: 0; }
+  22%  { opacity: .26; }
+  100% { opacity: 0; }
+}
+/* 幕に合わせて、紙の中身もひと呼吸おいて入れ替わる */
+@keyframes edit-settle {
+  0%   { opacity: 1; }
+  22%  { opacity: .45; }
+  100% { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #detail-overlay.open,
+  .paper.anim-open,
+  .paper.anim-edit,
+  #edit-veil.flash { animation: none; }
+}
 
 .paper {
   position: relative;
@@ -184,6 +221,11 @@ a { color: var(--red); }
 }
 .paper-kana { margin: 8px 0 0; font-size: 12px; letter-spacing: 0.14em; color: var(--ink-3); }
 .paper-byline { margin: 12px 0 0; font-size: 12px; color: var(--ink-2); }
+.byline-sep { margin: 0 10px; color: var(--ink-3); }
+#detail-paper #e-shape {
+  font-family: var(--sans); font-size: 12px; color: var(--ink-2);
+  padding: 0 18px 0 6px; margin: 0 -6px; background-position: right 4px center;
+}
 
 .paper-section { margin-top: 30px; }
 .paper-h2 {

@@ -103,10 +103,18 @@
     <header class="paper-head">
       <p class="paper-eyebrow" id="d-eyebrow"></p>
       <h1 class="paper-title view-field" id="d-name"></h1>
-      <input class="edit-field edit-title" id="e-name" placeholder="名称" aria-label="名称">
+      <input class="edit-field edit-title" id="e-title" placeholder="名称" aria-label="名称"
+             autocomplete="off" spellcheck="false">
       <p class="paper-kana view-field" id="d-kana"></p>
-      <input class="edit-field edit-kana" id="e-kana" placeholder="ふりがな" aria-label="ふりがな">
-      <p class="paper-byline" id="d-byline"></p>
+      <input class="edit-field edit-kana" id="e-kana" placeholder="ふりがな" aria-label="ふりがな"
+             autocomplete="off" spellcheck="false">
+      <p class="paper-byline view-field" id="d-byline"></p>
+      <p class="paper-byline edit-field" id="e-byline">
+        <select id="e-shape" aria-label="形状">
+          <option value="">形状を選ぶ</option>
+          {% for key, name in shapes.items() %}<option value="{{ key }}">{{ name }}</option>{% endfor %}
+        </select><span class="byline-sep">／</span><span id="e-byline-designation"></span>
+      </p>
     </header>
 
     <section class="paper-section">
@@ -114,29 +122,24 @@
       <table class="paper-table view-field"><tbody id="d-table"></tbody></table>
       <table class="paper-table edit-field"><tbody>
         <tr><th>所在地</th><td><span id="e-address" class="auto-value">—</span></td></tr>
-        <tr><th>形状 <em>必須</em></th><td>
-          <select id="e-shape">
-            <option value="">選択してください</option>
-            {% for key, name in shapes.items() %}<option value="{{ key }}">{{ name }}</option>{% endfor %}
-          </select>
-        </td></tr>
         <tr><th>墳丘長</th><td>
-          <input id="e-length" type="number" step="any" placeholder="—">
+          <input id="e-length" type="number" step="any" placeholder="—" autocomplete="off">
           <span class="field-note" id="e-length-note"></span>
         </td></tr>
         <tr><th>墳丘高</th><td>
-          <input id="e-height" type="number" step="any" placeholder="—">
+          <input id="e-height" type="number" step="any" placeholder="—" autocomplete="off">
           <button type="button" id="e-height-btn" class="btn-toggle subtle">標高から求める</button>
           <span class="field-note" id="e-height-note"></span>
         </td></tr>
         <tr><th>築造年代</th><td>
           <input id="e-period" placeholder="400〜500" inputmode="numeric"
-                 aria-label="築造年代（数字と〜のみ）">
+                 aria-label="築造年代（数字と〜のみ）" autocomplete="off">
           <span class="field-note" id="e-period-note"></span>
         </td></tr>
-        <tr><th>指定 <em>必須</em></th><td>
-          <input id="e-designation" list="designation-options" placeholder="国史跡 など">
-          <datalist id="designation-options">
+        <tr><th>指定</th><td>
+          <input id="e-desig" list="desig-options" placeholder="国史跡 など"
+                 aria-label="指定" autocomplete="off" spellcheck="false">
+          <datalist id="desig-options">
             <option value="国特別史跡"></option>
             <option value="国史跡"></option>
             <option value="県史跡"></option>
@@ -156,7 +159,8 @@
     <section class="paper-section" id="d-desc-section">
       <h2 class="paper-h2">概要</h2>
       <p class="paper-body view-field" id="d-desc"></p>
-      <textarea class="edit-field" id="e-desc" rows="1" placeholder="立地、構造、出土品、調査経過など"></textarea>
+      <textarea class="edit-field" id="e-desc" rows="1" autocomplete="off"
+                placeholder="立地、構造、出土品、調査経過など"></textarea>
     </section>
 
     <section class="paper-section" id="d-history-section">
@@ -175,6 +179,9 @@
     </footer>
   </article>
 </div>
+
+<!-- ── 編集へ移るときに一瞬だけ差す赤の幕 ── -->
+<div id="edit-veil" aria-hidden="true"></div>
 
 <!-- ── 地図上で Path を描くときの案内ツールバー（紙を一時的に隠して操作） ── -->
 <div id="outline-map-toolbar">
