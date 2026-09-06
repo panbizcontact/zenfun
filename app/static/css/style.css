@@ -321,14 +321,21 @@ a { color: var(--red); }
 }
 .timeline.editable .tl-track { cursor: crosshair; }
 .tl-band {
-  position: absolute; top: 0; bottom: 0;
+  position: absolute; top: 0; bottom: 0; z-index: 1;   /* 期の名は範囲の帯より前に出す */
   border-right: 1px solid var(--rule);
   display: flex; align-items: center; justify-content: center;
 }
 .tl-band:last-of-type { border-right: none; }
 .tl-band span { font-size: 9px; letter-spacing: .04em; color: var(--ink-3); }
+/* 選ばれた範囲にかかる期と目盛りは濃く出す */
+.tl-band.on span { color: var(--ink); font-weight: 600; }
+.tl-scale span.on { color: var(--ink); font-weight: 600; }
+/* 範囲は、期の名を隠さないよう淡く敷き、両端と下辺だけ紅で示す */
 .tl-range {
-  position: absolute; top: 0; bottom: 0; background: var(--red); opacity: .68;
+  position: absolute; top: 0; bottom: 0; z-index: 0;
+  background: rgba(157, 28, 32, .13);
+  border-left: 1px solid var(--red); border-right: 1px solid var(--red);
+  box-shadow: inset 0 -3px 0 var(--red);
 }
 .tl-mark { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--red); }
 .tl-mark.pending { opacity: .55; }
@@ -339,7 +346,7 @@ a { color: var(--red); }
 }
 .tl-scale span.tl-first { transform: none; }
 .tl-scale span.tl-last { transform: translateX(-100%); }
-.tl-caption { font-size: 12px; color: var(--ink); margin-top: 1px; }
+.tl-caption { font-size: 11px; color: var(--ink-3); margin-top: 1px; }
 
 /* 実測値でない値に添える注意マーク */
 .est-mark { color: var(--red); font-size: 12px; margin-left: 4px; cursor: help; }

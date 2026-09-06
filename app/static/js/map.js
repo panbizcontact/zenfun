@@ -427,37 +427,44 @@
     return t * 100;
   }
 
-  function tlCaption(from, to, pending) {
-    if (pending != null) return `${pending}年 — もう一点たたくと範囲が決まります`;
-    if (from == null && to == null) return "未設定";
-    const years = from != null && to != null && from !== to
-      ? `${fmtYear(from)}〜${fmtYear(to)}年` : `${fmtYear(from != null ? from : to)}年ごろ`;
-    return `古墳時代${periodOf(from != null ? from : to)}　${years}`;
-  }
-
+  // 選ばれた範囲は、帯の「〇〇期」と目盛りの数字を濃くすることで示す
   function renderTimeline(el, from, to, pending) {
     if (!el) return;
-    const bands = PERIOD_BANDS.map(([a, b, name]) =>
-      `<div class="tl-band" style="left:${tlPct(a)}%;width:${tlPct(b) - tlPct(a)}%">` +
-      `<span>${name}</span></div>`).join("");
+    const has = from != null || to != null;
+    const a = has ? Math.min(from != null ? from : to, to != null ? to : from) : null;
+    const b = has ? Math.max(from != null ? from : to, to != null ? to : from) : null;
+
+    const bands = PERIOD_BANDS.map(([s0, s1, name]) => {
+      // 範囲にかかる期を濃くする（点のときはその点を含む期）
+      const on = has && (a === b ? (s0 <= a && a < s1) : (s1 > a && s0 < b));
+      return `<div class="tl-band${on ? " on" : ""}" ` +
+        `style="left:${tlPct(s0)}%;width:${tlPct(s1) - tlPct(s0)}%"><span>${name}</span></div>`;
+    }).join("");
+
     let marks = "";
     if (from != null && to != null) {
-      const a = Math.min(from, to), b = Math.max(from, to);
       marks += `<div class="tl-range" style="left:${tlPct(a)}%;` +
                `width:${Math.max(tlPct(b) - tlPct(a), 0.8)}%"></div>`;
     } else if (from != null) {
       marks += `<div class="tl-mark" style="left:${tlPct(from)}%"></div>`;
     }
     if (pending != null) marks += `<div class="tl-mark pending" style="left:${tlPct(pending)}%"></div>`;
+
     // 両端の目盛りは、中央寄せのままだと軌道からはみ出すので寄せ方を変える
     const scale = TL_TICKS.map((y, i) => {
-      const edge = i === 0 ? " tl-first" : (i === TL_TICKS.length - 1 ? " tl-last" : "");
-      return `<span class="${edge.trim()}" style="left:${tlPct(y)}%">${y}</span>`;
+      const cls = [];
+      if (i === 0) cls.push("tl-first");
+      if (i === TL_TICKS.length - 1) cls.push("tl-last");
+      if (has && y >= a && y <= b) cls.push("on");
+      return `<span class="${cls.join(" ")}" style="left:${tlPct(y)}%">${y}</span>`;
     }).join("");
+
+    // 何も決まっていないときだけ、その旨を小さく添える
+    const caption = (!has && pending == null)
+      ? '<div class="tl-caption">未設定</div>' : "";
     el.innerHTML =
       `<div class="tl-track">${bands}${marks}</div>` +
-      `<div class="tl-scale">${scale}</div>` +
-      `<div class="tl-caption">${escapeHtml(tlCaption(from, to, pending))}</div>`;
+      `<div class="tl-scale">${scale}</div>` + caption;
   }
 
   function drawEditTimeline() {
